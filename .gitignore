@@ -1,0 +1,37 @@
+# Session and development files
+SESSION_NOTES.md
+*.backup
+*.bak
+
+# Telemetry discovery files (contain VIN and personal data)
+vinfast_aliases.txt
+vinfast_all_telemetry.json
+**/lovelace.vinfast_telemetry.json
+**/generate_telemetry_dashboard.py
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets (should never be committed)
+*.pem
+*.key
+secrets.yaml
+.env
+credentials.json
