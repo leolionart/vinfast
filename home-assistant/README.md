@@ -1,10 +1,10 @@
 # VinFast Home Assistant Integration
 
-Home Assistant configurations for VinFast EV owners, including vehicle telemetry, OCPP charger monitoring, cost tracking, and gas savings calculations.
+Home Assistant configurations for VinFast EV owners, including vehicle telemetry, wall panel dashboard, and optional OCPP charger monitoring.
 
 ## Features
 
-### VinFast Connected Car Integration
+### VinFast Connected Car Integration (Core)
 - **Battery & Range** - Real-time SOC and estimated range
 - **Odometer** - Track miles driven for accurate cost calculations
 - **Doors & Windows** - Individual door status (FL, FR, RL, RR)
@@ -15,7 +15,8 @@ Home Assistant configurations for VinFast EV owners, including vehicle telemetry
 - **Charging Status** - Charging state, time to full, charge limit
 - **Lock Status** - Vehicle lock state
 
-### OCPP Charger Dashboard
+### OCPP Charger Dashboard (Optional)
+*For owners with OCPP-compatible home chargers only*
 - **Real-Time Monitoring** - Power, current, voltage gauges
 - **Cost Tracking** - Session, daily, weekly, monthly costs
 - **Odometer-Based Calculations** - Actual $/mile from real driving data
@@ -24,10 +25,13 @@ Home Assistant configurations for VinFast EV owners, including vehicle telemetry
 
 ## Requirements
 
+### Required
 - Home Assistant (2024.1 or newer recommended)
 - VinFast account (for vehicle integration)
-- OCPP Integration (for charger features)
-- Mushroom Cards (optional, for enhanced UI)
+
+### Optional
+- OCPP Integration (only if you have an OCPP-compatible charger)
+- Mushroom Cards (for enhanced UI on OCPP dashboard)
 
 ## VinFast Connected Car Setup
 
@@ -60,9 +64,9 @@ Home Assistant configurations for VinFast EV owners, including vehicle telemetry
 | Speed | Current speed |
 | Location | GPS coordinates |
 
-## OCPP Integration Setup
+## OCPP Integration Setup (Optional)
 
-Before using the cost tracking configurations, install the OCPP integration:
+> **Note:** This section is only for owners with OCPP-compatible home chargers (e.g., Wallbox, Grizzl-E, OpenEVSE). Skip this entire section if you don't have an OCPP charger.
 
 **[Complete OCPP Setup Guide](ocpp-setup/README.md)**
 
@@ -71,9 +75,9 @@ Before using the cost tracking configurations, install the OCPP integration:
 - [OCPP Wiki (charger-specific guides)](https://github.com/lbbrhzn/ocpp/wiki)
 - [HACS Installation](https://hacs.xyz/docs/setup/download)
 
-## Installation
+### OCPP Installation
 
-### 1. Add Configuration
+#### 1. Add Configuration
 
 Copy the contents of `configuration/ocpp_sensors.yaml` to your `configuration.yaml`, or use include:
 
@@ -86,11 +90,11 @@ template: !include configuration/ocpp_sensors.yaml
 - `sensor.your_vehicle_name_odometer` → `sensor.YOUR_VEHICLE_NAME_odometer`
 - `sensor.charger_*` → your OCPP charger entity names
 
-### 2. Add Automations
+#### 2. Add Automations
 
 Copy files from `automations/` to your Home Assistant automations folder.
 
-### 3. Import Dashboard
+#### 3. Import Dashboard
 
 1. Go to **Settings** → **Dashboards**
 2. Click **Add Dashboard** → **New dashboard from scratch**
@@ -98,7 +102,7 @@ Copy files from `automations/` to your Home Assistant automations folder.
 4. Paste contents of `dashboards/vinfast_dashboard.yaml`
 5. Save
 
-### 4. Customize Settings
+#### 4. Customize Settings
 
 Edit these values in `configuration/ocpp_sensors.yaml`:
 
@@ -114,39 +118,44 @@ Edit these values in `configuration/ocpp_sensors.yaml`:
 ```
 ├── README.md
 ├── custom_components/
-│   └── vinfast/               # VinFast Connected Car integration
+│   └── vinfast/                    # VinFast Connected Car integration (REQUIRED)
 │       ├── __init__.py
-│       ├── api.py             # VinFast API client
-│       ├── config_flow.py     # Setup wizard
-│       ├── coordinator.py     # Data coordinator
-│       ├── sensor.py          # Sensor entities
-│       ├── binary_sensor.py   # Binary sensors (doors, etc.)
-│       ├── device_tracker.py  # Location tracking
+│       ├── api.py                  # VinFast API client
+│       ├── config_flow.py          # Setup wizard
+│       ├── coordinator.py          # Data coordinator
+│       ├── sensor.py               # Sensor entities
+│       ├── binary_sensor.py        # Binary sensors (doors, etc.)
+│       ├── device_tracker.py       # Location tracking
 │       └── manifest.json
-├── ocpp-setup/
-│   └── README.md              # OCPP setup guide
+├── dashboards/
+│   ├── wall-panel/                 # Wall panel dashboard (RECOMMENDED)
+│   │   ├── README.md               # Setup guide
+│   │   ├── vinfast-wall-panel.yaml # Dashboard YAML
+│   │   └── setup.py                # Interactive setup script
+│   └── vinfast_dashboard.yaml      # OCPP charger dashboard (optional)
+├── ocpp-setup/                     # OCPP charger setup (OPTIONAL)
+│   └── README.md                   # OCPP setup guide
 ├── configuration/
-│   └── ocpp_sensors.yaml      # Cost tracking & gas savings
-├── automations/
-│   ├── ocpp_auto_start.yaml   # Auto-start charging
-│   └── ocpp_tts.yaml          # Voice announcements
-└── dashboards/
-    └── vinfast_dashboard.yaml # Lovelace dashboard
+│   └── ocpp_sensors.yaml           # OCPP cost tracking (optional)
+└── automations/
+    ├── ocpp_auto_start.yaml        # OCPP auto-start (optional)
+    └── ocpp_tts.yaml               # OCPP voice announcements (optional)
 ```
 
 ## Dashboard Features
 
-### Vehicle View
-- Battery gauge with range and odometer
-- Status row: Lock, Charging, Plug, Power
-- Individual door status (FL, FR, RL, RR)
-- Trunk, Hood, Windows status
-- Tire pressure for all four corners
-- Climate (inside/outside temp, speed)
-- Live map with vehicle location
-- Vehicle info (Model, Year, Color)
+### Wall Panel Dashboard (Recommended)
+A beautiful glassmorphism-style dashboard for Nest Hub and tablet displays:
+- Real-time battery, range, and charging status
+- Live vehicle status (lock, plug, doors, gear)
+- Multi-vehicle support (1-4 VinFasts)
+- Unified map showing all vehicle locations
+- Telemetry update status with manual refresh
 
-### Charging View
+**[View Wall Panel Setup Guide](dashboards/wall-panel/README.md)**
+
+### OCPP Charging Dashboard (Optional)
+For owners with OCPP-compatible chargers:
 - Battery status with charging indicators
 - OCPP charger controls (start/stop, availability, max current)
 - Power, current, voltage gauges
@@ -156,9 +165,9 @@ Edit these values in `configuration/ocpp_sensors.yaml`:
 - Cost metrics ($/kWh, $/mile, $/100 miles)
 - Gas savings comparison
 
-## Adjustable Settings
+## Adjustable Settings (OCPP)
 
-After installation, adjust these from the dashboard:
+After OCPP installation, adjust these from the dashboard:
 
 | Setting | Entity | Description |
 |---------|--------|-------------|

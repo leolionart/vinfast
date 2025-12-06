@@ -19,11 +19,17 @@ from .const import (
     DOMAIN,
     CONF_OCPP_ENTITY,
     CONF_OCPP_CHARGING_STATE,
+    CONF_UPDATE_INTERVAL,
+    CONF_CHARGING_UPDATE_INTERVAL,
     CONF_REGION,
     DEFAULT_OCPP_CHARGER_ENTITY,
     DEFAULT_OCPP_CHARGING_STATE,
     DEFAULT_REGION,
     REGIONS,
+    UPDATE_INTERVAL_NORMAL,
+    UPDATE_INTERVAL_CHARGING,
+    UPDATE_INTERVAL_OPTIONS,
+    CHARGING_UPDATE_INTERVAL_OPTIONS,
 )
 from .pairing import VinFastPairing, VinFastPairingError
 
@@ -140,12 +146,26 @@ class VinFastOptionsFlow(config_entries.OptionsFlow):
     async def async_step_configure_polling(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Configure OCPP entity for dynamic polling."""
+        """Configure telemetry update intervals."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
             # Save the options
             new_options = dict(self.config_entry.options)
+
+            # Get update interval from selection
+            interval_selection = user_input.get(CONF_UPDATE_INTERVAL, "4 hours (recommended)")
+            new_options[CONF_UPDATE_INTERVAL] = UPDATE_INTERVAL_OPTIONS.get(
+                interval_selection, UPDATE_INTERVAL_NORMAL
+            )
+
+            # Get charging interval from selection
+            charging_selection = user_input.get(CONF_CHARGING_UPDATE_INTERVAL, "5 minutes (recommended)")
+            new_options[CONF_CHARGING_UPDATE_INTERVAL] = CHARGING_UPDATE_INTERVAL_OPTIONS.get(
+                charging_selection, UPDATE_INTERVAL_CHARGING
+            )
+
+            # OCPP entity (optional)
             new_options[CONF_OCPP_ENTITY] = user_input.get(CONF_OCPP_ENTITY, "")
             new_options[CONF_OCPP_CHARGING_STATE] = user_input.get(
                 CONF_OCPP_CHARGING_STATE, DEFAULT_OCPP_CHARGING_STATE
@@ -153,23 +173,45 @@ class VinFastOptionsFlow(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data=new_options)
 
         # Get current values
+        current_interval = self.config_entry.options.get(
+            CONF_UPDATE_INTERVAL, UPDATE_INTERVAL_NORMAL
+        )
+        current_charging_interval = self.config_entry.options.get(
+            CONF_CHARGING_UPDATE_INTERVAL, UPDATE_INTERVAL_CHARGING
+        )
         current_entity = self.config_entry.options.get(
-            CONF_OCPP_ENTITY, DEFAULT_OCPP_CHARGER_ENTITY
+            CONF_OCPP_ENTITY, ""
         )
         current_state = self.config_entry.options.get(
             CONF_OCPP_CHARGING_STATE, DEFAULT_OCPP_CHARGING_STATE
         )
 
+        # Find the label for current interval value
+        default_interval = "4 hours (recommended)"
+        for label, value in UPDATE_INTERVAL_OPTIONS.items():
+            if value == current_interval:
+                default_interval = label
+                break
+
+        default_charging_interval = "5 minutes (recommended)"
+        for label, value in CHARGING_UPDATE_INTERVAL_OPTIONS.items():
+            if value == current_charging_interval:
+                default_charging_interval = label
+                break
+
         return self.async_show_form(
             step_id="configure_polling",
             data_schema=vol.Schema({
+                vol.Required(CONF_UPDATE_INTERVAL, default=default_interval): vol.In(
+                    list(UPDATE_INTERVAL_OPTIONS.keys())
+                ),
+                vol.Required(CONF_CHARGING_UPDATE_INTERVAL, default=default_charging_interval): vol.In(
+                    list(CHARGING_UPDATE_INTERVAL_OPTIONS.keys())
+                ),
                 vol.Optional(CONF_OCPP_ENTITY, default=current_entity): str,
                 vol.Optional(CONF_OCPP_CHARGING_STATE, default=current_state): str,
             }),
             errors=errors,
-            description_placeholders={
-                "instructions": "Configure OCPP charger entity for dynamic polling. When the entity state matches the charging state, polling increases to 5 minutes. Leave entity blank to disable dynamic polling."
-            },
         )
 
     async def async_step_pair_remote(

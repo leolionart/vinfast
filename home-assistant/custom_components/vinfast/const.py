@@ -49,10 +49,29 @@ CONF_PASSWORD = "password"
 # Options keys
 CONF_OCPP_ENTITY = "ocpp_entity"
 CONF_OCPP_CHARGING_STATE = "ocpp_charging_state"
+CONF_UPDATE_INTERVAL = "update_interval"
+CONF_CHARGING_UPDATE_INTERVAL = "charging_update_interval"
 
 # Update intervals (seconds)
-UPDATE_INTERVAL_NORMAL = 14400  # 4 hours when idle
-UPDATE_INTERVAL_CHARGING = 300  # 5 minutes when charging via OCPP
+UPDATE_INTERVAL_NORMAL = 14400  # 4 hours when idle (default)
+UPDATE_INTERVAL_CHARGING = 300  # 5 minutes when charging via OCPP (default)
+
+# Update interval options (in hours for normal, minutes for charging)
+UPDATE_INTERVAL_OPTIONS = {
+    "1 hour": 3600,
+    "2 hours": 7200,
+    "4 hours (recommended)": 14400,
+    "6 hours": 21600,
+    "8 hours": 28800,
+    "12 hours": 43200,
+}
+
+CHARGING_UPDATE_INTERVAL_OPTIONS = {
+    "5 minutes (recommended)": 300,
+    "10 minutes": 600,
+    "15 minutes": 900,
+    "30 minutes": 1800,
+}
 
 # Legacy - for backward compatibility
 UPDATE_INTERVAL = UPDATE_INTERVAL_NORMAL

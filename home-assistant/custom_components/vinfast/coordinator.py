@@ -19,6 +19,8 @@ from .const import (
     UPDATE_INTERVAL_CHARGING,
     CONF_OCPP_ENTITY,
     CONF_OCPP_CHARGING_STATE,
+    CONF_UPDATE_INTERVAL,
+    CONF_CHARGING_UPDATE_INTERVAL,
     CONF_REGION,
     DEFAULT_OCPP_CHARGER_ENTITY,
     DEFAULT_OCPP_CHARGING_STATE,
@@ -35,11 +37,13 @@ class VinFastDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the coordinator."""
+        # Get configured update interval or use default
+        configured_interval = entry.options.get(CONF_UPDATE_INTERVAL, UPDATE_INTERVAL_NORMAL)
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(seconds=UPDATE_INTERVAL_NORMAL),
+            update_interval=timedelta(seconds=configured_interval),
         )
         self.config_entry = entry
         self._api: VinFastApi | None = None
@@ -152,14 +156,24 @@ class VinFastDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if self._is_ocpp_charging:
                 self.hass.async_create_task(self.async_request_refresh())
 
+    def _get_normal_interval(self) -> int:
+        """Get configured normal update interval."""
+        return self.config_entry.options.get(CONF_UPDATE_INTERVAL, UPDATE_INTERVAL_NORMAL)
+
+    def _get_charging_interval(self) -> int:
+        """Get configured charging update interval."""
+        return self.config_entry.options.get(CONF_CHARGING_UPDATE_INTERVAL, UPDATE_INTERVAL_CHARGING)
+
     def _update_polling_interval(self) -> None:
         """Update the polling interval based on charging state."""
         if self._is_ocpp_charging:
-            new_interval = timedelta(seconds=UPDATE_INTERVAL_CHARGING)
-            _LOGGER.debug("OCPP charging detected - switching to 5-minute polling")
+            interval_seconds = self._get_charging_interval()
+            new_interval = timedelta(seconds=interval_seconds)
+            _LOGGER.debug("OCPP charging detected - switching to %d-second polling", interval_seconds)
         else:
-            new_interval = timedelta(seconds=UPDATE_INTERVAL_NORMAL)
-            _LOGGER.debug("Not charging - switching to 4-hour polling")
+            interval_seconds = self._get_normal_interval()
+            new_interval = timedelta(seconds=interval_seconds)
+            _LOGGER.debug("Not charging - switching to %d-second polling", interval_seconds)
 
         if self.update_interval != new_interval:
             self.update_interval = new_interval

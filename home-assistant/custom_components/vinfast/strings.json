@@ -27,8 +27,19 @@
         "title": "VinFast Options",
         "description": "Remote Control Status: {is_paired}",
         "menu_options": {
+          "configure_polling": "Configure Update Intervals",
           "pair_remote": "Pair for Remote Control",
           "unpair": "Remove Pairing"
+        }
+      },
+      "configure_polling": {
+        "title": "Telemetry Update Settings",
+        "description": "Configure how often to fetch vehicle data from VinFast servers.\n\n**Please use 4 hours or longer** to be respectful of VinFast servers. Shorter intervals are available but should only be used temporarily.\n\nIf you have an OCPP charger, you can optionally configure faster polling while charging.",
+        "data": {
+          "update_interval": "Normal Update Interval",
+          "charging_update_interval": "Charging Update Interval",
+          "ocpp_entity": "OCPP Charger Entity (optional)",
+          "ocpp_charging_state": "OCPP Charging State Value"
         }
       },
       "pair_remote": {
