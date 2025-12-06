@@ -234,6 +234,15 @@ SENSOR_DESCRIPTIONS: tuple[VinFastSensorEntityDescription, ...] = (
         value_fn=lambda data: get_telemetry_value(data, "battery_level"),
     ),
     VinFastSensorEntityDescription(
+        key="battery_12v",
+        translation_key="battery_12v",
+        native_unit_of_measurement=PERCENTAGE,
+        device_class=SensorDeviceClass.BATTERY,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:car-battery",
+        value_fn=lambda data: get_telemetry_value(data, "lv_battery_level"),
+    ),
+    VinFastSensorEntityDescription(
         key="range",
         translation_key="range",
         native_unit_of_measurement=UnitOfLength.MILES,
@@ -349,6 +358,7 @@ async def async_setup_entry(
 
     entities: list[VinFastSensor] = []
 
+    # Add predefined sensors
     for description in SENSOR_DESCRIPTIONS:
         entities.append(VinFastSensor(coordinator, description))
 
@@ -400,7 +410,7 @@ class VinFastSensor(CoordinatorEntity[VinFastDataUpdateCoordinator], SensorEntit
         # Telemetry-only sensors are only available when we have telemetry data
         # Note: odometer is NOT in this list since it falls back to vehicle info
         telemetry_only_sensors = (
-            "battery_level", "range", "time_to_full",
+            "battery_level", "battery_12v", "range", "time_to_full",
             "charging_status", "charge_limit", "speed", "gear",
             "outside_temp", "inside_temp", "tire_pressure_fl", "tire_pressure_fr",
             "tire_pressure_rl", "tire_pressure_rr",

@@ -6,14 +6,16 @@ Home Assistant configurations for VinFast EV owners, including vehicle telemetry
 
 ### VinFast Connected Car Integration (Core)
 - **Battery & Range** - Real-time SOC and estimated range
+- **12V Battery** - Low-voltage battery SOC
 - **Odometer** - Track miles driven for accurate cost calculations
 - **Doors & Windows** - Individual door status (FL, FR, RL, RR)
 - **Trunk & Hood** - Opening status
-- **Tire Pressure** - All four tires
+- **Tire Pressure** - All four tires (PSI)
 - **Climate** - Inside and outside temperatures
 - **Location** - GPS tracking with map display
 - **Charging Status** - Charging state, time to full, charge limit
 - **Lock Status** - Vehicle lock state
+- **Speed & Gear** - Current speed and gear position
 
 ### OCPP Charger Dashboard (Optional)
 *For owners with OCPP-compatible home chargers only*
@@ -46,10 +48,11 @@ Home Assistant configurations for VinFast EV owners, including vehicle telemetry
 
 | Sensor | Description |
 |--------|-------------|
-| Battery | State of charge (%) |
+| Battery | HV battery state of charge (%) |
+| 12V Battery | LV battery state of charge (%) |
 | Range | Estimated range (miles) |
 | Odometer | Current mileage |
-| Charging | Charging state |
+| Charging Status | Charging state |
 | Time to Full | Minutes until charged |
 | Charge Limit | Target SOC (%) |
 | Doors (FL/FR/RL/RR) | Individual door open/closed |
@@ -62,6 +65,7 @@ Home Assistant configurations for VinFast EV owners, including vehicle telemetry
 | Lock Status | Vehicle locked/unlocked |
 | Plug Status | Charger plugged in |
 | Speed | Current speed |
+| Gear | P/R/N/D |
 | Location | GPS coordinates |
 
 ## OCPP Integration Setup (Optional)

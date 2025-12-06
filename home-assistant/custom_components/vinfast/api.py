@@ -18,17 +18,22 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Known aliases we want to request from the API
-# These match the actual VinFast API alias names from the APK (VehicleDeviceKeyAlias.java)
-TELEMETRY_ALIASES = [
+# Request ALL aliases mode - when True, requests all available aliases from server
+# This allows discovery of all available data points
+# Set to False for normal operation (requests only core aliases)
+REQUEST_ALL_ALIASES = False
+
+# Core aliases that we always want (used for friendly name mapping)
+# These are the most commonly used data points
+CORE_TELEMETRY_ALIASES = [
     # Battery & Charging
     "VEHICLE_STATUS_HV_BATTERY_SOC",          # Battery state of charge (%)
+    "VEHICLE_STATUS_LV_BATTERY_SOC",          # 12V/Low voltage battery SOC (%)
     "VEHICLE_STATUS_REMAINING_DISTANCE",      # Estimated range (km)
     "VEHICLE_STATUS_ODOMETER",                # Real-time odometer (km)
     "CHARGING_STATUS_CHARGING_STATUS",        # Charging state (ChargingState enum)
     "CHARGING_STATUS_CHARGING_REMAINING_TIME", # Time to full charge (Long)
     "CHARGE_CONTROL_CURRENT_TARGET_SOC",      # Charge limit/target SOC (%)
-    "CHARGE_CONTROL_SAMPLE_CHARGE_STATUS",    # Charge status sample
     # Vehicle Status
     "VEHICLE_STATUS_IGNITION_STATUS",         # Ignition on/off
     "VEHICLE_STATUS_GEAR_POSITION",           # Gear position (P/R/N/D)
@@ -37,27 +42,26 @@ TELEMETRY_ALIASES = [
     # Climate/Temperature
     "VEHICLE_STATUS_AMBIENT_TEMPERATURE",     # Outside temp (C)
     "CLIMATE_INFORMATION_DRIVER_TEMPERATURE", # Interior/driver temp (C)
-    "CLIMATE_INFORMATION_STATUS",             # Climate system status
     # Tire Pressure
     "VEHICLE_STATUS_FRONT_LEFT_TIRE_PRESSURE",
     "VEHICLE_STATUS_FRONT_RIGHT_TIRE_PRESSURE",
     "VEHICLE_STATUS_REAR_LEFT_TIRE_PRESSURE",
     "VEHICLE_STATUS_REAR_RIGHT_TIRE_PRESSURE",
-    # Door Status (individual doors)
-    "DOOR_AJAR_FRONT_LEFT_DOOR_STATUS",       # Front left door (DoorStatus enum)
-    "DOOR_AJAR_FRONT_RIGHT_DOOR_STATUS",      # Front right door
-    "DOOR_AJAR_REAR_LEFT_DOOR_STATUS",        # Rear left door
-    "DOOR_AJAR_REAR_RIGHT_DOOR_STATUS",       # Rear right door
-    "DOOR_TRUNK_DOOR_STATUS",                 # Trunk status (TrunkStatus enum)
+    # Door Status
+    "DOOR_AJAR_FRONT_LEFT_DOOR_STATUS",
+    "DOOR_AJAR_FRONT_RIGHT_DOOR_STATUS",
+    "DOOR_AJAR_REAR_LEFT_DOOR_STATUS",
+    "DOOR_AJAR_REAR_RIGHT_DOOR_STATUS",
+    "DOOR_TRUNK_DOOR_STATUS",
     # Remote Control Status
-    "REMOTE_CONTROL_DOOR_STATUS",             # Door lock status
-    "REMOTE_CONTROL_BONNET_CONTROL_STATUS",   # Hood/bonnet status
-    "REMOTE_CONTROL_WINDOW_STATUS",           # Window status
-    "REMOTE_CONTROL_CHARGE_PORT_STATUS",      # Charge port/plugged in status
+    "REMOTE_CONTROL_DOOR_STATUS",
+    "REMOTE_CONTROL_BONNET_CONTROL_STATUS",
+    "REMOTE_CONTROL_WINDOW_STATUS",
+    "REMOTE_CONTROL_CHARGE_PORT_STATUS",
     # Location
-    "LOCATION_LATITUDE",                      # GPS latitude (Double)
-    "LOCATION_LONGITUDE",                     # GPS longitude (Double)
-    "VEHICLE_BEARING_DEGREE",                 # Heading direction (Double)
+    "LOCATION_LATITUDE",
+    "LOCATION_LONGITUDE",
+    "VEHICLE_BEARING_DEGREE",
 ]
 
 # Fallback static resource paths (used if get-alias fails)
@@ -346,8 +350,8 @@ class VinFastApi:
                 _LOGGER.debug("Loaded %d alias mappings from server", len(mappings))
 
                 # Log which of our requested aliases were found
-                found = [a for a in TELEMETRY_ALIASES if a in mappings]
-                missing = [a for a in TELEMETRY_ALIASES if a not in mappings]
+                found = [a for a in CORE_TELEMETRY_ALIASES if a in mappings]
+                missing = [a for a in CORE_TELEMETRY_ALIASES if a not in mappings]
                 _LOGGER.debug("Aliases found: %d, missing: %d", len(found), len(missing))
 
             return mappings
@@ -364,7 +368,11 @@ class VinFastApi:
         return data.get("data", {})
 
     async def get_telemetry(self) -> dict[str, Any] | None:
-        """Get vehicle telemetry data."""
+        """Get vehicle telemetry data.
+
+        When REQUEST_ALL_ALIASES is True, requests ALL available aliases from the server.
+        This enables discovery of all data points the vehicle provides.
+        """
         if not self._vin:
             _LOGGER.info("TELEMETRY: No VIN available, skipping telemetry fetch")
             return None
@@ -379,10 +387,9 @@ class VinFastApi:
         path_to_alias = {}  # Reverse mapping for parsing response
 
         if alias_mappings:
-            # Use dynamic paths from server
-            for alias in TELEMETRY_ALIASES:
-                if alias in alias_mappings:
-                    mapping = alias_mappings[alias]
+            if REQUEST_ALL_ALIASES:
+                # Request ALL available aliases for comprehensive data discovery
+                for alias, mapping in alias_mappings.items():
                     path = mapping["path"]
                     request_objects.append({
                         "objectId": mapping["objectId"],
@@ -390,7 +397,20 @@ class VinFastApi:
                         "resourceId": mapping["resourceId"],
                     })
                     path_to_alias[path] = alias
-            _LOGGER.debug("Telemetry: Using %d dynamic resources from alias mappings", len(request_objects))
+                _LOGGER.info("Telemetry: Requesting ALL %d aliases for comprehensive data", len(request_objects))
+            else:
+                # Use only core aliases
+                for alias in CORE_TELEMETRY_ALIASES:
+                    if alias in alias_mappings:
+                        mapping = alias_mappings[alias]
+                        path = mapping["path"]
+                        request_objects.append({
+                            "objectId": mapping["objectId"],
+                            "instanceId": mapping["instanceId"],
+                            "resourceId": mapping["resourceId"],
+                        })
+                        path_to_alias[path] = alias
+                _LOGGER.debug("Telemetry: Using %d core resources", len(request_objects))
         else:
             # Fallback to static paths - parse them into object format
             for path in FALLBACK_TELEMETRY_RESOURCES:
@@ -422,16 +442,19 @@ class VinFastApi:
                 _LOGGER.debug("Telemetry: No data in response")
                 return None
 
-            _LOGGER.debug("Telemetry: Received %d values", len(raw_data) if isinstance(raw_data, list) else 0)
+            _LOGGER.info("Telemetry: Received %d values out of %d requested",
+                        len(raw_data) if isinstance(raw_data, list) else 0,
+                        len(request_objects))
 
             # Parse ping response - it's a list of VehiclePingResourceDto objects
-            return self._parse_ping_response(raw_data, path_to_alias)
+            return self._parse_ping_response(raw_data, path_to_alias, alias_mappings)
         except VinFastApiError as err:
             _LOGGER.debug("Telemetry request failed: %s", err)
             return None
 
     def _parse_ping_response(
-        self, raw_data: list, path_to_alias: dict[str, str] | None = None
+        self, raw_data: list, path_to_alias: dict[str, str] | None = None,
+        alias_mappings: dict[str, dict[str, str]] | None = None
     ) -> dict[str, Any]:
         """Parse ping response into friendly format.
 
@@ -448,15 +471,18 @@ class VinFastApi:
         deviceKey format is: {objectId}_{instanceId:05d}_{resourceId:05d}
         """
         result = {}
+        # Also store raw alias data for comprehensive monitoring
+        result["_raw_aliases"] = {}
 
         if not isinstance(raw_data, list):
             _LOGGER.debug("Telemetry: ping response is not a list: %s", type(raw_data))
             return result
 
-        # Map aliases to friendly keys (same as in _parse_telemetry)
+        # Map core aliases to friendly keys for backward compatibility
         alias_to_key = {
             # Battery & Charging
             "VEHICLE_STATUS_HV_BATTERY_SOC": "battery_level",
+            "VEHICLE_STATUS_LV_BATTERY_SOC": "lv_battery_level",
             "VEHICLE_STATUS_REMAINING_DISTANCE": "range",
             "VEHICLE_STATUS_ODOMETER": "odometer",
             "CHARGING_STATUS_CHARGING_STATUS": "charging_status",
@@ -500,6 +526,7 @@ class VinFastApi:
 
             device_key = item.get("deviceKey")
             value = item.get("value")
+            last_update = item.get("lastUpdateTime")
 
             if device_key and value is not None:
 
@@ -513,19 +540,29 @@ class VinFastApi:
                 else:
                     path = device_key
 
-                # Use path_to_alias to get alias, then alias_to_key for friendly name
-                friendly_key = path  # Default to path if not mapped
-                if path_to_alias and path in path_to_alias:
-                    alias = path_to_alias[path]
-                    friendly_key = alias_to_key.get(alias, alias.lower())
+                # Get the alias name for this path
+                alias = path_to_alias.get(path, path) if path_to_alias else path
 
-                # Try to convert to float for numeric values
+                # Store in raw_aliases for comprehensive monitoring (use alias name as key)
                 try:
-                    result[friendly_key] = float(value)
+                    parsed_value = float(value)
                 except (ValueError, TypeError):
-                    result[friendly_key] = value
+                    parsed_value = value
 
-        _LOGGER.debug("Telemetry: Parsed %d values", len(result))
+                result["_raw_aliases"][alias] = {
+                    "value": parsed_value,
+                    "path": path,
+                    "last_update": last_update,
+                }
+
+                # Use alias_to_key for backward-compatible friendly names
+                friendly_key = alias_to_key.get(alias, alias.lower())
+
+                # Store in main result with friendly key
+                result[friendly_key] = parsed_value
+
+        _LOGGER.debug("Telemetry: Parsed %d values", len(result) - 1)  # -1 for _raw_aliases
+
         return result
 
     async def get_locations(self) -> list[dict[str, Any]]:

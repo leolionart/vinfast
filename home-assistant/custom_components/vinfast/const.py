@@ -53,17 +53,19 @@ CONF_UPDATE_INTERVAL = "update_interval"
 CONF_CHARGING_UPDATE_INTERVAL = "charging_update_interval"
 
 # Update intervals (seconds)
-UPDATE_INTERVAL_NORMAL = 14400  # 4 hours when idle (default)
+# Default: 2.5 hours = ~10 polls per day (respectful of VinFast servers)
+UPDATE_INTERVAL_NORMAL = 9000  # 2.5 hours when idle (default) = ~10 polls/day
 UPDATE_INTERVAL_CHARGING = 300  # 5 minutes when charging via OCPP (default)
 
 # Update interval options (in hours for normal, minutes for charging)
 UPDATE_INTERVAL_OPTIONS = {
-    "1 hour": 3600,
-    "2 hours": 7200,
-    "4 hours (recommended)": 14400,
-    "6 hours": 21600,
-    "8 hours": 28800,
-    "12 hours": 43200,
+    "1 hour (~24/day)": 3600,
+    "2 hours (~12/day)": 7200,
+    "2.5 hours (~10/day, recommended)": 9000,
+    "4 hours (~6/day)": 14400,
+    "6 hours (~4/day)": 21600,
+    "8 hours (~3/day)": 28800,
+    "12 hours (~2/day)": 43200,
 }
 
 CHARGING_UPDATE_INTERVAL_OPTIONS = {

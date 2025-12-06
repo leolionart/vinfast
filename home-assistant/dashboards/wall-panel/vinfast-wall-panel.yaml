@@ -196,6 +196,7 @@ views:
               const isIgnitionOn = states['binary_sensor.vinfast_power']?.state === 'on';
               const gear = states['sensor.vinfast_gear']?.state || 'P';
               const odometer = Math.round(parseFloat(states['sensor.vinfast_odometer']?.state)) || 0;
+              const battery12v = Math.round(parseFloat(states['sensor.vinfast_battery_12v']?.state)) || 0;
 
               // Door/window status
               const doorsOpen = states['binary_sensor.vinfast_door']?.state === 'on';
@@ -312,6 +313,9 @@ views:
                     <div style="display: flex; align-items: center; gap: clamp(4px, 1vw, 8px);">
                       <ha-icon icon="mdi:steering" style="--mdc-icon-size: clamp(12px, 2vw, 16px); color: rgba(255,255,255,0.5);"></ha-icon>
                       <span>${odometer.toLocaleString()} mi</span>
+                      <span style="color: rgba(255,255,255,0.3);">|</span>
+                      <ha-icon icon="mdi:car-battery" style="--mdc-icon-size: clamp(12px, 2vw, 16px); color: ${battery12v < 50 ? '#FFC107' : 'rgba(255,255,255,0.5)'};"></ha-icon>
+                      <span style="color: ${battery12v < 50 ? '#FFC107' : 'rgba(255,255,255,0.7)'};">${battery12v}%</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: clamp(4px, 1vw, 8px);">
                       ${isPluggedIn ? '<ha-icon icon="mdi:ev-plug-type1" style="--mdc-icon-size: clamp(12px, 2vw, 16px); color: #4CAF50;"></ha-icon>' : ''}
