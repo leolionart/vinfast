@@ -9,6 +9,9 @@ A beautiful glassmorphism-style wall panel dashboard designed specifically for V
 ### v7 Enhancements (Latest)
 - **Multi-Vehicle Support** - Display 1-4 VinFast vehicles on one dashboard
 - **Unified Map View** - All vehicles shown on a single map
+- **Telemetry Status Display** - Shows "Updated Xm ago" and "Next in Xh Xm"
+- **Stale Data Warning** - Yellow alert when data is over 5 hours old
+- **Manual Refresh Button** - Tap to trigger immediate telemetry update
 - **Combined Time & Weather Card** - Clock and weather unified in a sleek header
 - **Live Vehicle Status** - Real-time indicators for gear, lock, plug, and doors
 - **Temperature Display** - Both inside and outside temperatures
@@ -30,38 +33,75 @@ A beautiful glassmorphism-style wall panel dashboard designed specifically for V
 
 ## Prerequisites
 
-### Required Custom Cards
+### Home Assistant Requirements
 
-Install these via [HACS](https://hacs.xyz/):
+- **Home Assistant** 2024.1 or newer
+- **HACS** (Home Assistant Community Store) - [Installation Guide](https://hacs.xyz/docs/setup/download)
 
-1. **[button-card](https://github.com/custom-cards/button-card)** - For custom styled cards
-2. **[layout-card](https://github.com/thomasloven/lovelace-layout-card)** - For grid layout
-3. **[card-mod](https://github.com/thomasloven/lovelace-card-mod)** - For CSS styling
+### Required Custom Cards (via HACS)
+
+These frontend cards must be installed via HACS before the dashboard will work:
+
+| Card | Purpose | HACS Search |
+|------|---------|-------------|
+| [button-card](https://github.com/custom-cards/button-card) | Custom styled buttons & cards | "button-card" |
+| [layout-card](https://github.com/thomasloven/lovelace-layout-card) | CSS Grid layout support | "layout-card" |
+| [card-mod](https://github.com/thomasloven/lovelace-card-mod) | Custom CSS styling | "card-mod" |
 
 ### Required Integrations
 
-- **VinFast Integration** - For EV battery, range, tire pressure, and location data
-- **Weather Integration** - Any weather provider (Met.no, OpenWeatherMap, etc.)
-- **Mobile App** - For phone battery and presence detection
-- **Alarm Integration** (optional) - For security panel status
+| Integration | Source | Purpose |
+|-------------|--------|---------|
+| **VinFast** | This repo (`custom_components/vinfast/`) | Vehicle telemetry (battery, range, location, etc.) |
+| **Weather** | HA Built-in | Weather display (Met.no, OpenWeatherMap, etc.) |
+| **Mobile App** | HA Built-in | Phone battery & presence detection |
+| **Map** | HA Built-in | Vehicle location display |
+
+### Optional Integrations
+
+| Integration | Source | Purpose |
+|-------------|--------|---------|
+| Alarm Panel | HA Store or custom | Security status display |
+| Garage Door | HA Store or custom | Garage door status |
+| Camera batteries | Arlo, Ring, etc. | Camera battery monitoring |
 
 ## Installation
 
-### 1. Install Required Custom Cards
+### Step 1: Install HACS (if not already installed)
+
+HACS is required to install the custom frontend cards.
+
+1. Follow the [official HACS installation guide](https://hacs.xyz/docs/setup/download)
+2. Restart Home Assistant
+3. Go to **Settings** → **Devices & Services** → **Add Integration** → search "HACS"
+4. Complete HACS setup
+
+### Step 2: Install Required Custom Cards
 
 ```
-Via HACS (recommended):
-1. Open HACS in Home Assistant
-2. Go to Frontend
+1. Open Home Assistant
+2. Go to HACS → Frontend
 3. Click "+ Explore & Download Repositories"
-4. Search and install:
-   - button-card
-   - layout-card
-   - card-mod
-5. Restart Home Assistant
+4. Search and install each card:
+   - "button-card" by custom-cards
+   - "layout-card" by Thomas Lovén
+   - "card-mod" by Thomas Lovén
+5. IMPORTANT: Restart Home Assistant after installing all three
+6. Clear your browser cache (Ctrl+Shift+R or Cmd+Shift+R)
 ```
 
-### 2. Add Required Images
+### Step 3: Install VinFast Integration
+
+```
+1. Download the `custom_components/vinfast/` folder from this repository
+2. Copy it to your Home Assistant `/config/custom_components/` directory
+3. Restart Home Assistant
+4. Go to Settings → Devices & Services → Add Integration
+5. Search for "VinFast" and enter your account credentials
+6. Select your region (US, Europe, or Vietnam)
+```
+
+### Step 4: Add Required Images
 
 Create the vinfast folder and add your images:
 
@@ -70,7 +110,7 @@ Create the vinfast folder and add your images:
 /config/www/vinfast/vf_bg.png    # Your background image
 ```
 
-### 3. Create the Dashboard
+### Step 5: Create the Dashboard
 
 #### Option A: Via UI (Recommended)
 
@@ -101,7 +141,7 @@ lovelace:
 
 Then copy `vinfast-wall-panel.yaml` to `/config/wall-panel.yaml`.
 
-### 4. Configure Your Entities
+### Step 6: Configure Your Entities
 
 #### Option A: Interactive Setup Script (Recommended)
 
