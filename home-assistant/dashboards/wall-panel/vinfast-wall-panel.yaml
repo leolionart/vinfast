@@ -179,6 +179,15 @@ views:
               const timeToFull = parseFloat(states['sensor.vinfast_time_to_full']?.state) || 0;
               const chargingPower = states['sensor.vinfast_charging_power']?.state;
 
+              // OCPP charger data for charging stats row
+              const ocppPower = parseFloat(states['sensor.charger_power_active_import']?.state) || 0;
+              const ocppPowerText = ocppPower > 1000 ? (ocppPower/1000).toFixed(1) + ' kW' : ocppPower.toFixed(0) + ' W';
+              const ocppSessionKwh = (parseFloat(states['sensor.charger_energy_session']?.state) || 0).toFixed(1);
+              const ocppSessionSecs = parseFloat(states['sensor.charger_time_session']?.state) || 0;
+              const ocppDurationH = Math.floor(ocppSessionSecs / 3600);
+              const ocppDurationM = Math.floor((ocppSessionSecs % 3600) / 60);
+              const ocppDurationText = ocppDurationH > 0 ? ocppDurationH + 'h ' + ocppDurationM + 'm' : ocppDurationM + 'm';
+
               // Temperatures
               const insideTemp = Math.round(parseFloat(states['sensor.vinfast_inside_temperature']?.state)) || '--';
               const outsideTemp = Math.round(parseFloat(states['sensor.vinfast_outside_temperature']?.state)) || '--';
@@ -304,15 +313,12 @@ views:
                     <div style="display: flex; align-items: center; gap: 4px;">
                       <ha-icon icon="mdi:lightning-bolt" style="--mdc-icon-size: clamp(12px, 2vw, 16px); color: #4CAF50;"></ha-icon>
                       <span style="color: rgba(255,255,255,0.5);">Power</span>
-                      <span style="color: #4CAF50;">${(() => {
-                        const power = parseFloat(states['sensor.charger_power_active_import']?.state) || 0;
-                        return power > 1000 ? (power/1000).toFixed(1) + ' kW' : power.toFixed(0) + ' W';
-                      })()}</span>
+                      <span style="color: #4CAF50;">${ocppPowerText}</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 4px;">
                       <ha-icon icon="mdi:battery-charging" style="--mdc-icon-size: clamp(12px, 2vw, 16px); color: #4CAF50;"></ha-icon>
                       <span style="color: rgba(255,255,255,0.5);">Session</span>
-                      <span style="color: #4CAF50;">${(parseFloat(states['sensor.charger_energy_session']?.state) || 0).toFixed(1)} kWh</span>
+                      <span style="color: #4CAF50;">${ocppSessionKwh} kWh</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 4px;">
                       <ha-icon icon="mdi:battery-clock" style="--mdc-icon-size: clamp(12px, 2vw, 16px); color: #64B5F6;"></ha-icon>
@@ -322,12 +328,7 @@ views:
                     <div style="display: flex; align-items: center; gap: 4px;">
                       <ha-icon icon="mdi:timer-outline" style="--mdc-icon-size: clamp(12px, 2vw, 16px); color: rgba(255,255,255,0.5);"></ha-icon>
                       <span style="color: rgba(255,255,255,0.5);">Duration</span>
-                      <span>${(() => {
-                        const secs = parseFloat(states['sensor.charger_time_session']?.state) || 0;
-                        const h = Math.floor(secs / 3600);
-                        const m = Math.floor((secs % 3600) / 60);
-                        return h > 0 ? h + 'h ' + m + 'm' : m + 'm';
-                      })()}</span>
+                      <span>${ocppDurationText}</span>
                     </div>
                   </div>
                   ` : ''}
