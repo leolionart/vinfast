@@ -305,7 +305,41 @@ views:
                     <div style="position: absolute; left: ${chargeLimit}%; top: -18px; transform: translateX(-50%); font-size: 9px; color: rgba(255,255,255,0.5);">${chargeLimit}%</div>
                   </div>
 
-                  <!-- Status row -->
+                  <!-- Charging stats row (only when charging) - above ODO -->
+                  ${isCharging ? `
+                  <div style="display: flex; justify-content: space-around; align-items: center; padding: clamp(4px, 1vw, 8px) 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 4px; font-size: clamp(10px, 1.8vw, 13px); color: rgba(255,255,255,0.7); background: rgba(76,175,80,0.1); border-radius: 8px;">
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <ha-icon icon="mdi:lightning-bolt" style="--mdc-icon-size: clamp(12px, 2vw, 16px); color: #4CAF50;"></ha-icon>
+                      <span style="color: rgba(255,255,255,0.5);">Power</span>
+                      <span style="color: #4CAF50;">${(() => {
+                        const power = parseFloat(states['sensor.charger_power_active_import']?.state) || 0;
+                        return power > 1000 ? (power/1000).toFixed(1) + ' kW' : power.toFixed(0) + ' W';
+                      })()}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <ha-icon icon="mdi:battery-charging" style="--mdc-icon-size: clamp(12px, 2vw, 16px); color: #4CAF50;"></ha-icon>
+                      <span style="color: rgba(255,255,255,0.5);">Session</span>
+                      <span style="color: #4CAF50;">${(parseFloat(states['sensor.charger_energy_session']?.state) || 0).toFixed(1)} kWh</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <ha-icon icon="mdi:battery-clock" style="--mdc-icon-size: clamp(12px, 2vw, 16px); color: #64B5F6;"></ha-icon>
+                      <span style="color: rgba(255,255,255,0.5);">Full in</span>
+                      <span style="color: #64B5F6;">${timeToFull > 0 ? formatChargingTime(timeToFull) : '--'}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <ha-icon icon="mdi:timer-outline" style="--mdc-icon-size: clamp(12px, 2vw, 16px); color: rgba(255,255,255,0.5);"></ha-icon>
+                      <span style="color: rgba(255,255,255,0.5);">Duration</span>
+                      <span>${(() => {
+                        const secs = parseFloat(states['sensor.charger_time_session']?.state) || 0;
+                        const h = Math.floor(secs / 3600);
+                        const m = Math.floor((secs % 3600) / 60);
+                        return h > 0 ? h + 'h ' + m + 'm' : m + 'm';
+                      })()}</span>
+                    </div>
+                  </div>
+                  ` : ''}
+
+                  <!-- Status row (ODO, 12V, charging status) -->
                   <div style="display: flex; justify-content: space-between; align-items: center; padding: clamp(4px, 1vw, 8px) 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: clamp(8px, 1.5vw, 12px); font-size: clamp(10px, 1.8vw, 13px); color: rgba(255,255,255,0.7);">
                     <div style="display: flex; align-items: center; gap: clamp(4px, 1vw, 8px);">
                       <ha-icon icon="${location === 'home' ? 'mdi:home' : 'mdi:map-marker'}" style="--mdc-icon-size: clamp(12px, 2vw, 16px); color: ${location === 'home' ? '#4CAF50' : '#64B5F6'};"></ha-icon>
