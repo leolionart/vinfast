@@ -62,6 +62,18 @@ views:
             "energy energy"
           gap: 8px
           padding: 10px
+        "(max-width: 600px)":
+          grid-template-columns: 1fr
+          grid-template-rows: auto auto auto auto auto auto
+          grid-template-areas: |
+            "timeweather"
+            "car"
+            "status"
+            "map"
+            "security"
+            "battery"
+          gap: 12px
+          padding: 12px
     cards:
       # ===== TIME & WEATHER COMBINED =====
       - type: custom:button-card
@@ -794,8 +806,13 @@ views:
               border-radius: 16px;
               box-shadow: 0 8px 32px rgba(0,0,0,0.3);
               overflow: hidden;
-              height: clamp(280px, 55vw, 450px) !important;
+              height: clamp(240px, 45vw, 450px) !important;
               cursor: pointer;
+            }
+            @media (max-width: 600px) {
+              ha-card {
+                height: 280px !important;
+              }
             }
             #map, .leaflet-container {
               height: 100% !important;

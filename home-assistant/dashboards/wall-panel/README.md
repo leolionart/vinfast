@@ -1,6 +1,6 @@
 # VinFast EV Wall Panel Dashboard for Home Assistant
 
-A beautiful glassmorphism-style wall panel dashboard designed specifically for VinFast EV owners. Optimized for Google Nest Hub displays (7" and 10") and tablets.
+A beautiful glassmorphism-style wall panel dashboard designed specifically for VinFast EV owners. Optimized for Google Nest Hub displays (7" and 10") and tablets, with mobile-responsive support for quick status checks on phones.
 
 **Supports 1-4 VinFast vehicles on a single dashboard!**
 
@@ -33,7 +33,7 @@ A beautiful glassmorphism-style wall panel dashboard designed specifically for V
 - **Security Status** - Alarm system and garage door status (display only - no controls)
 - **Presence Detection** - Who's home at a glance
 - **Battery Monitor** - Phone and camera battery levels
-- **Fully Responsive** - Uses CSS `clamp()` for smooth scaling across all screen sizes
+- **Fully Responsive** - Optimized layouts for large displays (4-column), tablets (2-column), and phones (single-column stack)
 
 ## Prerequisites
 
