@@ -1,5 +1,6 @@
 # Session and development files
 SESSION_NOTES.md
+DEV_REFERENCE.md
 *.backup
 *.bak
 
