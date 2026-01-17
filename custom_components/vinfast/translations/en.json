@@ -34,12 +34,9 @@
       },
       "configure_polling": {
         "title": "Telemetry Update Settings",
-        "description": "Configure how often to fetch vehicle data from VinFast servers.\n\n**Please use 4 hours or longer** to be respectful of VinFast servers. Shorter intervals are available but should only be used temporarily.\n\nIf you have an OCPP charger, you can optionally configure faster polling while charging.",
+        "description": "Configure how often to fetch vehicle data from VinFast servers.\n\n**Please use 4 hours or longer** to be respectful of VinFast servers. Shorter intervals are available but should only be used temporarily.",
         "data": {
-          "update_interval": "Normal Update Interval",
-          "charging_update_interval": "Charging Update Interval",
-          "ocpp_entity": "OCPP Charger Entity (optional)",
-          "ocpp_charging_state": "OCPP Charging State Value"
+          "update_interval": "Normal Update Interval"
         }
       },
       "pair_remote": {
@@ -70,40 +67,100 @@
   },
   "entity": {
     "sensor": {
-      "odometer": { "name": "Odometer" },
-      "vehicle_name": { "name": "Vehicle Name" },
-      "model": { "name": "Model" },
-      "year": { "name": "Year" },
-      "color": { "name": "Color" },
-      "vin": { "name": "VIN" },
-      "battery_level": { "name": "Battery" },
-      "range": { "name": "Range" },
-      "charging_power": { "name": "Charging Power" },
-      "time_to_full": { "name": "Time to Full" },
-      "charging_status": { "name": "Charging Status" },
-      "charge_limit": { "name": "Charge Limit" },
-      "battery_12v": { "name": "12V Battery" },
-      "speed": { "name": "Speed" },
-      "gear": { "name": "Gear" },
-      "outside_temp": { "name": "Outside Temperature" },
-      "inside_temp": { "name": "Inside Temperature" },
-      "tire_pressure_fl": { "name": "Tire Pressure FL" },
-      "tire_pressure_fr": { "name": "Tire Pressure FR" },
-      "tire_pressure_rl": { "name": "Tire Pressure RL" },
-      "tire_pressure_rr": { "name": "Tire Pressure RR" }
+      "odometer": {
+        "name": "Odometer"
+      },
+      "vehicle_name": {
+        "name": "Vehicle Name"
+      },
+      "model": {
+        "name": "Model"
+      },
+      "year": {
+        "name": "Year"
+      },
+      "color": {
+        "name": "Color"
+      },
+      "vin": {
+        "name": "VIN"
+      },
+      "battery_level": {
+        "name": "Battery"
+      },
+      "range": {
+        "name": "Range"
+      },
+      "charging_power": {
+        "name": "Charging Power"
+      },
+      "time_to_full": {
+        "name": "Time to Full"
+      },
+      "charging_status": {
+        "name": "Charging Status"
+      },
+      "charge_limit": {
+        "name": "Charge Limit"
+      },
+      "battery_12v": {
+        "name": "12V Battery"
+      },
+      "speed": {
+        "name": "Speed"
+      },
+      "gear": {
+        "name": "Gear"
+      },
+      "outside_temp": {
+        "name": "Outside Temperature"
+      },
+      "inside_temp": {
+        "name": "Inside Temperature"
+      },
+      "tire_pressure_fl": {
+        "name": "Tire Pressure FL"
+      },
+      "tire_pressure_fr": {
+        "name": "Tire Pressure FR"
+      },
+      "tire_pressure_rl": {
+        "name": "Tire Pressure RL"
+      },
+      "tire_pressure_rr": {
+        "name": "Tire Pressure RR"
+      }
     },
     "binary_sensor": {
-      "charging": { "name": "Charging" },
-      "locked": { "name": "Locked" },
-      "ignition": { "name": "Ignition" },
-      "plugged_in": { "name": "Plugged In" },
-      "trunk_open": { "name": "Trunk" },
-      "hood_open": { "name": "Hood" },
-      "door_open": { "name": "Doors" },
-      "window_open": { "name": "Windows" }
+      "charging": {
+        "name": "Charging"
+      },
+      "locked": {
+        "name": "Locked"
+      },
+      "ignition": {
+        "name": "Ignition"
+      },
+      "plugged_in": {
+        "name": "Plugged In"
+      },
+      "trunk_open": {
+        "name": "Trunk"
+      },
+      "hood_open": {
+        "name": "Hood"
+      },
+      "door_open": {
+        "name": "Doors"
+      },
+      "window_open": {
+        "name": "Windows"
+      }
     },
     "switch": {
-      "climate": { "name": "Climate" }
+      "climate": {
+        "name": "Climate"
+      }
     }
   }
 }

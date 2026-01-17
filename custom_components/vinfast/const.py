@@ -47,17 +47,13 @@ CONF_EMAIL = "email"
 CONF_PASSWORD = "password"
 
 # Options keys
-CONF_OCPP_ENTITY = "ocpp_entity"
-CONF_OCPP_CHARGING_STATE = "ocpp_charging_state"
 CONF_UPDATE_INTERVAL = "update_interval"
-CONF_CHARGING_UPDATE_INTERVAL = "charging_update_interval"
 
 # Update intervals (seconds)
 # Default: 2.5 hours = ~10 polls per day (respectful of VinFast servers)
 UPDATE_INTERVAL_NORMAL = 9000  # 2.5 hours when idle (default) = ~10 polls/day
-UPDATE_INTERVAL_CHARGING = 300  # 5 minutes when charging via OCPP (default)
 
-# Update interval options (in hours for normal, minutes for charging)
+# Update interval options (in hours for normal)
 UPDATE_INTERVAL_OPTIONS = {
     "1 hour (~24/day)": 3600,
     "2 hours (~12/day)": 7200,
@@ -68,23 +64,8 @@ UPDATE_INTERVAL_OPTIONS = {
     "12 hours (~2/day)": 43200,
 }
 
-CHARGING_UPDATE_INTERVAL_OPTIONS = {
-    "5 minutes (recommended)": 300,
-    "10 minutes": 600,
-    "15 minutes": 900,
-    "30 minutes": 1800,
-}
-
 # Legacy - for backward compatibility
 UPDATE_INTERVAL = UPDATE_INTERVAL_NORMAL
-
-# Default OCPP charger entity to monitor for charging state
-DEFAULT_OCPP_CHARGER_ENTITY = "sensor.charger_status_connector"
-DEFAULT_OCPP_CHARGING_STATE = "Charging"
-
-# Legacy - for backward compatibility
-OCPP_CHARGER_STATUS_ENTITY = DEFAULT_OCPP_CHARGER_ENTITY
-OCPP_CHARGING_STATE = DEFAULT_OCPP_CHARGING_STATE
 
 # Sensor types
 SENSOR_ODOMETER = "odometer"

@@ -9,7 +9,6 @@
 # - Map (built-in HA - for vehicle location)
 #
 # OPTIONAL INTEGRATIONS (can be removed):
-# - OCPP Charger integration (lines 177-186, 308-327)
 # - Alarm Panel (alarm_control_panel.home_alarm)
 # - Garage Door sensor (binary_sensor.garage_door)
 # - Camera batteries (lines 683-687, 708-736)
@@ -219,17 +218,6 @@ views:
               const timeToFull = parseFloat(states['sensor.vinfast_time_to_full']?.state) || 0;
               const chargingPower = states['sensor.vinfast_charging_power']?.state;
 
-              // OCPP charger data for charging stats row (OPTIONAL - requires OCPP integration)
-              // If you don't have OCPP, this row will gracefully hide when not charging
-              // Remove lines 177-184 and 307-326 if you want to completely remove OCPP features
-              const ocppPower = parseFloat(states['sensor.charger_power_active_import']?.state) || 0;
-              const ocppPowerText = ocppPower > 1000 ? (ocppPower/1000).toFixed(1) + ' kW' : ocppPower.toFixed(0) + ' W';
-              const ocppSessionKwh = (parseFloat(states['sensor.charger_energy_session']?.state) || 0).toFixed(1);
-              const ocppSessionSecs = parseFloat(states['sensor.charger_time_session']?.state) || 0;
-              const ocppDurationH = Math.floor(ocppSessionSecs / 3600);
-              const ocppDurationM = Math.floor((ocppSessionSecs % 3600) / 60);
-              const ocppDurationText = ocppDurationH > 0 ? ocppDurationH + 'h ' + ocppDurationM + 'm' : ocppDurationM + 'm';
-
               // Temperatures
               const insideTemp = Math.round(parseFloat(states['sensor.vinfast_temperature_2']?.state)) || '--';
               const outsideTemp = Math.round(parseFloat(states['sensor.vinfast_temperature']?.state)) || '--';
@@ -350,28 +338,7 @@ views:
                     <div style="position: absolute; left: ${chargeLimit}%; top: -18px; transform: translateX(-50%); font-size: 9px; color: rgba(255,255,255,0.5);">${chargeLimit}%</div>
                   </div>
 
-                  <!-- Charging stats row (OPTIONAL - only when charging, requires OCPP integration) -->
-                  <!-- If you don't have OCPP, remove this entire block (lines 306-326) -->
-                  ${isCharging ? `
-                  <div style="display: flex; justify-content: space-around; align-items: center; padding: clamp(6px, 1.2vw, 10px) clamp(8px, 1.5vw, 12px); border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: clamp(6px, 1.2vw, 10px); font-size: clamp(9px, 1.6vw, 12px); color: rgba(255,255,255,0.7); background: rgba(76,175,80,0.08); border-radius: 8px;">
-                    <div style="display: flex; align-items: center; gap: 4px;">
-                      <ha-icon icon="mdi:lightning-bolt" style="--mdc-icon-size: clamp(11px, 2vw, 14px); color: #4CAF50;"></ha-icon>
-                      <span style="color: #4CAF50; font-weight: 500;">${ocppPowerText}</span>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 4px;">
-                      <ha-icon icon="mdi:battery-charging" style="--mdc-icon-size: clamp(11px, 2vw, 14px); color: #4CAF50;"></ha-icon>
-                      <span style="color: #4CAF50; font-weight: 500;">${ocppSessionKwh} kWh</span>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 4px;">
-                      <ha-icon icon="mdi:battery-clock" style="--mdc-icon-size: clamp(11px, 2vw, 14px); color: #64B5F6;"></ha-icon>
-                      <span style="color: #64B5F6;">${timeToFull > 0 ? formatChargingTime(timeToFull) : '--'}</span>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 4px;">
-                      <ha-icon icon="mdi:timer-outline" style="--mdc-icon-size: clamp(11px, 2vw, 14px); color: rgba(255,255,255,0.5);"></ha-icon>
-                      <span>${ocppDurationText}</span>
-                    </div>
-                  </div>
-                  ` : ''}
+
 
                   <!-- Status row -->
                   <div style="display: flex; justify-content: space-between; align-items: center; padding: clamp(4px, 1vw, 8px) 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: clamp(8px, 1.5vw, 12px); font-size: clamp(10px, 1.8vw, 13px); color: rgba(255,255,255,0.7);">

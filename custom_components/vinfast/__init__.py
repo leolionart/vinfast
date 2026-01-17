@@ -31,9 +31,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Set up OCPP charger state listener for dynamic polling
-    await coordinator.async_setup_charger_listener()
-
     # Register listener for options updates (e.g., pairing changes)
     entry.async_on_unload(entry.add_update_listener(async_update_options))
 
@@ -47,11 +44,6 @@ async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    # Unsubscribe from charger state changes
-    coordinator: VinFastDataUpdateCoordinator = hass.data[DOMAIN].get(entry.entry_id)
-    if coordinator:
-        coordinator.async_unsubscribe()
-
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data[DOMAIN].pop(entry.entry_id)
 

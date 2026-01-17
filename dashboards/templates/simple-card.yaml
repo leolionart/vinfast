@@ -1,0 +1,335 @@
+type: vertical-stack
+cards:
+  - type: grid
+    columns: 2
+    square: false
+    cards:
+      - type: custom:button-card
+        entity: sensor.{prefix}_battery
+        name: PIN
+        show_state: true
+        show_icon: true
+        styles:
+          card:
+            - background: rgba(255, 255, 255, 0.05)
+            - border-radius: 12px
+            - padding: 12px
+            - border: 1px solid rgba(255, 255, 255, 0.1)
+          name:
+            - font-size: 12px
+            - color: rgba(255, 255, 255, 0.6)
+            - font-weight: 500
+          state:
+            - font-size: 28px
+            - font-weight: 700
+            - color: "#4CAF50"
+          icon:
+            - width: 24px
+            - height: 24px
+            - color: "#4CAF50"
+      - type: custom:button-card
+        entity: sensor.{prefix}_range
+        name: QUÃNG ĐƯỜNG
+        show_state: true
+        show_icon: true
+        styles:
+          card:
+            - background: rgba(255, 255, 255, 0.05)
+            - border-radius: 12px
+            - padding: 12px
+            - border: 1px solid rgba(255, 255, 255, 0.1)
+          name:
+            - font-size: 12px
+            - color: rgba(255, 255, 255, 0.6)
+            - font-weight: 500
+          state:
+            - font-size: 28px
+            - font-weight: 700
+            - color: white
+          icon:
+            - width: 24px
+            - height: 24px
+            - color: white
+  - type: picture-elements
+    image: >-
+      https://7b50d2de0634f64.cmccloud.com.vn/pasterly/Gemini_Generated_Image_r0xcbkr0xcbkr0xc.png
+    aspect_ratio: "1184:864"
+    style: |
+      ha-card {
+        background: transparent;
+        box-shadow: none;
+        border: none;
+      }
+      #root > hui-image {
+        height: 100% !important;
+        width: 100% !important;
+        object-position: center !important;
+      }
+    elements:
+      - type: icon
+        entity: binary_sensor.{prefix}_door
+        icon: mdi:car-door
+        style:
+          top: auto
+          bottom: 0%
+          left: 50%
+          transform: translate(-50%, -50%)
+          color: >-
+            {{ 'red' if is_state('binary_sensor.{prefix}_door', 'on') else
+            'rgba(255,255,255,0.3)' }}
+          z-index: 2
+          "--iron-icon-height": 24px
+          "--iron-icon-width": 24px
+      - type: custom:button-card
+        entity: sensor.{prefix}_gear
+        show_name: false
+        show_state: true
+        style:
+          top: 10%
+          left: 50%
+          transform: translate(-50%, -50%)
+          z-index: 3
+        styles:
+          card:
+            - background: rgba(255,255,255,0.1)
+            - border: 1px solid rgba(255,255,255,0.2)
+            - border-radius: 50%
+            - width: 50px
+            - height: 50px
+            - display: flex
+            - justify-content: center
+            - align-items: center
+          state:
+            - font-size: 24px
+            - font-weight: 700
+            - color: white
+      - type: custom:button-card
+        entity: sensor.{prefix}_tire_pressure_fl
+        show_name: true
+        show_icon: false
+        show_state: true
+        name: TRƯỚC TRÁI
+        style:
+          top: 28%
+          right: auto
+          left: 20%
+          z-index: 2
+        styles:
+          card:
+            - background: transparent
+            - box-shadow: none
+            - border: none
+            - width: max-content
+            - text-align: right
+            - padding: 0
+            - overflow: visible
+            - white-space: nowrap
+          name:
+            - font-size: 9px
+            - color: rgba(255,255,255,0.5)
+            - font-weight: 500
+          state:
+            - font-size: 13px
+            - font-weight: 600
+            - color: white
+        custom_fields:
+          l: |
+            [[[
+              return `<div style="position: absolute; top: 18px; right: -20px; width: 20px; height: 2px; background: linear-gradient(90deg, rgba(255,255,255,0.5), rgba(255,255,255,0));"></div>`
+            ]]]
+      - type: custom:button-card
+        entity: sensor.{prefix}_tire_pressure_fr
+        show_name: true
+        show_icon: false
+        show_state: true
+        name: TRƯỚC PHẢI
+        style:
+          top: 28%
+          left: auto
+          right: 0%
+          z-index: 2
+        styles:
+          card:
+            - background: transparent
+            - box-shadow: none
+            - border: none
+            - width: max-content
+            - text-align: left
+            - padding: 0
+            - overflow: visible
+            - white-space: nowrap
+          name:
+            - font-size: 9px
+            - color: rgba(255,255,255,0.5)
+            - font-weight: 500
+          state:
+            - font-size: 13px
+            - font-weight: 600
+            - color: white
+        custom_fields:
+          l: |
+            [[[
+              return `<div style="position: absolute; top: 18px; left: -20px; width: 20px; height: 2px; background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.5));"></div>`
+            ]]]
+      - type: custom:button-card
+        entity: sensor.{prefix}_tire_pressure_rl
+        show_name: true
+        show_icon: false
+        show_state: true
+        name: SAU TRÁI
+        style:
+          top: 68%
+          right: auto
+          left: 20%
+          z-index: 2
+        styles:
+          card:
+            - background: transparent
+            - box-shadow: none
+            - border: none
+            - width: max-content
+            - text-align: right
+            - padding: 0
+            - overflow: visible
+            - white-space: nowrap
+          name:
+            - font-size: 9px
+            - color: rgba(255,255,255,0.5)
+            - font-weight: 500
+          state:
+            - font-size: 13px
+            - font-weight: 600
+            - color: white
+        custom_fields:
+          l: |
+            [[[
+              return `<div style="position: absolute; bottom: 18px; right: -20px; width: 20px; height: 2px; background: linear-gradient(90deg, rgba(255,255,255,0.5), rgba(255,255,255,0));"></div>`
+            ]]]
+      - type: custom:button-card
+        entity: sensor.{prefix}_tire_pressure_rr
+        show_name: true
+        show_icon: false
+        show_state: true
+        name: SAU PHẢI
+        style:
+          top: 68%
+          left: auto
+          right: 0%
+          z-index: 2
+        styles:
+          card:
+            - background: transparent
+            - box-shadow: none
+            - border: none
+            - width: max-content
+            - text-align: left
+            - padding: 0
+            - overflow: visible
+            - white-space: nowrap
+          name:
+            - font-size: 9px
+            - color: rgba(255,255,255,0.5)
+            - font-weight: 500
+          state:
+            - font-size: 13px
+            - font-weight: 600
+            - color: white
+        custom_fields:
+          l: |
+            [[[
+              return `<div style="position: absolute; bottom: 18px; left: -20px; width: 20px; height: 2px; background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.5));"></div>`
+            ]]]
+  - type: grid
+    columns: 2
+    square: false
+    cards:
+      - type: custom:button-card
+        entity: sensor.{prefix}_odometer
+        name: ODO
+        show_state: true
+        show_icon: true
+        styles:
+          card:
+            - background: rgba(255, 255, 255, 0.05)
+            - border-radius: 12px
+            - padding: 20px 12px
+            - border: 1px solid rgba(255, 255, 255, 0.1)
+          icon:
+            - width: 40px
+            - height: 40px
+            - padding-bottom: 10px
+          name:
+            - font-size: 10px
+            - color: rgba(255, 255, 255, 0.6)
+          state:
+            - font-size: 16px
+            - font-weight: 600
+      - type: custom:button-card
+        entity: sensor.{prefix}_12v_battery
+        name: 12V BATT
+        show_state: true
+        show_icon: true
+        styles:
+          card:
+            - background: rgba(255, 255, 255, 0.05)
+            - border-radius: 12px
+            - padding: 20px 12px
+            - border: 1px solid rgba(255, 255, 255, 0.1)
+          icon:
+            - width: 40px
+            - height: 40px
+            - padding-bottom: 10px
+          name:
+            - font-size: 10px
+            - color: rgba(255, 255, 255, 0.6)
+          state:
+            - font-size: 16px
+            - font-weight: 600
+            - color: "[[[ return entity.state > 80 ? '#4CAF50' : '#FF9800'; ]]]"
+      - type: custom:button-card
+        entity: sensor.{prefix}_outside_temperature
+        name: NGOÀI TRỜI
+        show_state: true
+        show_icon: true
+        styles:
+          card:
+            - background: rgba(255, 255, 255, 0.05)
+            - border-radius: 12px
+            - padding: 20px 12px
+            - border: 1px solid rgba(255, 255, 255, 0.1)
+          icon:
+            - color: "#2196F3"
+            - width: 40px
+            - height: 40px
+            - padding-bottom: 10px
+          name:
+            - font-size: 10px
+            - color: rgba(255, 255, 255, 0.6)
+          state:
+            - font-size: 16px
+            - font-weight: 600
+      - type: custom:button-card
+        entity: sensor.{prefix}_inside_temperature
+        name: TRONG XE
+        show_state: true
+        show_icon: true
+        styles:
+          card:
+            - background: rgba(255, 255, 255, 0.05)
+            - border-radius: 12px
+            - padding: 20px 12px
+            - border: 1px solid rgba(255, 255, 255, 0.1)
+          icon:
+            - color: "#FF9800"
+            - width: 40px
+            - height: 40px
+            - padding-bottom: 10px
+          name:
+            - font-size: 10px
+            - color: rgba(255, 255, 255, 0.6)
+          state:
+            - font-size: 16px
+            - font-weight: 600
+grid_options:
+  columns: 12
+  rows: auto

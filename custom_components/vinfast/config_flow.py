@@ -17,19 +17,12 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .api import VinFastApi, VinFastAuthError, VinFastApiError
 from .const import (
     DOMAIN,
-    CONF_OCPP_ENTITY,
-    CONF_OCPP_CHARGING_STATE,
     CONF_UPDATE_INTERVAL,
-    CONF_CHARGING_UPDATE_INTERVAL,
     CONF_REGION,
-    DEFAULT_OCPP_CHARGER_ENTITY,
-    DEFAULT_OCPP_CHARGING_STATE,
     DEFAULT_REGION,
     REGIONS,
     UPDATE_INTERVAL_NORMAL,
-    UPDATE_INTERVAL_CHARGING,
     UPDATE_INTERVAL_OPTIONS,
-    CHARGING_UPDATE_INTERVAL_OPTIONS,
 )
 
 # Optional pairing support - requires cryptography library
@@ -172,31 +165,11 @@ class VinFastOptionsFlow(config_entries.OptionsFlow):
                 interval_selection, UPDATE_INTERVAL_NORMAL
             )
 
-            # Get charging interval from selection
-            charging_selection = user_input.get(CONF_CHARGING_UPDATE_INTERVAL, "5 minutes (recommended)")
-            new_options[CONF_CHARGING_UPDATE_INTERVAL] = CHARGING_UPDATE_INTERVAL_OPTIONS.get(
-                charging_selection, UPDATE_INTERVAL_CHARGING
-            )
-
-            # OCPP entity (optional)
-            new_options[CONF_OCPP_ENTITY] = user_input.get(CONF_OCPP_ENTITY, "")
-            new_options[CONF_OCPP_CHARGING_STATE] = user_input.get(
-                CONF_OCPP_CHARGING_STATE, DEFAULT_OCPP_CHARGING_STATE
-            )
             return self.async_create_entry(title="", data=new_options)
 
         # Get current values
         current_interval = self.config_entry.options.get(
             CONF_UPDATE_INTERVAL, UPDATE_INTERVAL_NORMAL
-        )
-        current_charging_interval = self.config_entry.options.get(
-            CONF_CHARGING_UPDATE_INTERVAL, UPDATE_INTERVAL_CHARGING
-        )
-        current_entity = self.config_entry.options.get(
-            CONF_OCPP_ENTITY, ""
-        )
-        current_state = self.config_entry.options.get(
-            CONF_OCPP_CHARGING_STATE, DEFAULT_OCPP_CHARGING_STATE
         )
 
         # Find the label for current interval value
@@ -206,23 +179,12 @@ class VinFastOptionsFlow(config_entries.OptionsFlow):
                 default_interval = label
                 break
 
-        default_charging_interval = "5 minutes (recommended)"
-        for label, value in CHARGING_UPDATE_INTERVAL_OPTIONS.items():
-            if value == current_charging_interval:
-                default_charging_interval = label
-                break
-
         return self.async_show_form(
             step_id="configure_polling",
             data_schema=vol.Schema({
                 vol.Required(CONF_UPDATE_INTERVAL, default=default_interval): vol.In(
                     list(UPDATE_INTERVAL_OPTIONS.keys())
                 ),
-                vol.Required(CONF_CHARGING_UPDATE_INTERVAL, default=default_charging_interval): vol.In(
-                    list(CHARGING_UPDATE_INTERVAL_OPTIONS.keys())
-                ),
-                vol.Optional(CONF_OCPP_ENTITY, default=current_entity): str,
-                vol.Optional(CONF_OCPP_CHARGING_STATE, default=current_state): str,
             }),
             errors=errors,
         )
