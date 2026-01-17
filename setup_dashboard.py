@@ -47,7 +47,8 @@ def main():
     print_header()
 
     # 1. Get Entity Prefix
-    prefix = get_input("Enter your VinFast entity prefix", default="vinfast")
+    print("\n[Step 1] Configuration")
+    prefix = get_input("Enter your Entity ID Prefix (e.g. 'vf8' if sensor is 'sensor.vf8_battery')", default="vinfast")
     
     # 2. Choose Mode
     print("\nChoose your desired output:")
