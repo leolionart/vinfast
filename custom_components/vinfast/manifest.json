@@ -1,12 +1,16 @@
 {
   "domain": "vinfast",
   "name": "VinFast Connected Car",
-  "codeowners": ["@vinfastownersorg-cyber"],
+  "codeowners": [
+    "@vinfastownersorg-cyber"
+  ],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/vinfastownersorg-cyber/vinfastowners",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/vinfastownersorg-cyber/vinfastowners/issues",
-  "requirements": ["cryptography>=41.0.0"],
-  "version": "0.2.0"
+  "requirements": [
+    "cryptography>=41.0.0"
+  ],
+  "version": "0.2.1"
 }
