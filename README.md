@@ -27,20 +27,43 @@ If you are new to Home Assistant, follow these steps to set up a beautiful dashb
 
 Before running the setup script, you need a few things installed:
 
-1.  **"Terminal & SSH" Add-on** (To run the setup script):
+1.  **"Terminal & SSH" Add-on** (To run installation commands):
     *   Go to **Settings > Add-ons > Add-on Store**.
     *   Search for "Terminal & SSH".
     *   Click **Install** and then **Start**.
     *   *Tip: Enable "Show in sidebar" for easy access.*
 
-2.  **Custom Cards** (Via HACS - Required for the dashboard to look right):
+2.  **Install HACS** (If you don't have it):
+    *   **Prerequisite**: You need a GitHub account. [Sign up here](https://github.com/join) if you don't have one.
+    *   Open **Terminal** (from step 1).
+    *   Run this command:
+        ```bash
+        wget -O - https://get.hacs.xyz | bash
+        ```
+    *   Once finished, **Restart Home Assistant**.
+    *   After restart, go to **Settings > Devices & Services**.
+    *   Click **Add Integration**, search for "HACS".
+    *   Check all the confirmation boxes and submit.
+    *   Copy the code shown, click the GitHub link, sign in, and authorize HACS.
+    *   Done! HACS is now installed (you might need to clear your browser cache if you don't see it in the sidebar).
+
+3.  **Install VinFast Plugin** (Crucial Step):
+    *   Open **HACS** in Home Assistant.
+    *   Go to **Integrations**.
+    *   Click the 3 dots (top right) > **Custom repositories**.
+    *   Paste this repo URL: `https://github.com/leolionart/vinfast`
+    *   Select **Integration** category -> **Add**.
+    *   Find "VinFast Connected Car" in the list and **Download**.
+    *   **Restart Home Assistant**.
+
+4.  **Custom Cards** (Via HACS - Required for the dashboard):
     *   Go to **HACS > Frontend**.
     *   Click **+ Explore & Download Repositories**.
-    *   Search for and install these three cards:
+    *   Search for and install these three:
         1.  `button-card`
         2.  `layout-card`
         3.  `card-mod`
-    *   **Restart Home Assistant** after installing them.
+    *   **Restart Home Assistant** again after installing.
 
 ### Step 2: Run the Setup Wizard
 
