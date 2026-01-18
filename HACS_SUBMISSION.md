@@ -13,11 +13,12 @@
     *   Vào tab **Actions** trên trang GitHub repo của bạn.
     *   Bạn sẽ thấy một workflow tên là **HACS Action** đang chạy (hoặc đã chạy xong).
     *   Đảm bảo nó có **tick xanh lá cây (Success)**. Nếu sai, HACS sẽ từ chối ngay.
-3.  **Tạo Release**:
-    *   Tại trang chính repo, nhìn bên phải mục **Releases**, bấm **Create a new release**.
-    *   **Choose a tag**: Gõ `v1.0.0` (hoặc phiên bản bạn muốn).
-    *   **Title**: `Initial Release` (hoặc gì cũng được).
-    *   Bấm **Publish release**.
+3.  **Tạo Release Tự Động (One-Click)**:
+    *   Vào tab **Actions** trên repo GitHub của bạn.
+    *   Chọn workflow **"Publish New Version"** ở cột bên trái.
+    *   Bấm nút **Run workflow** (màu xanh bên phải).
+    *   Chọn loại update: `patch` (sửa lỗi), `minor` (tính năng mới), `major` (thay đổi lớn).
+    *   Bấm **Run workflow**. Hệ thống sẽ tự tăng số version trong file, tự commit, và tự tạo Release mới cho bạn!
 
 ---
 

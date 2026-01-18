@@ -1,0 +1,95 @@
+name: Publish New Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Bump Type (patch, minor, major)'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
+
+permissions:
+  contents: write
+
+jobs:
+  bump-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Read current version
+        id: read_version
+        run: |
+          VERSION=$(jq -r .version custom_components/vinfast/manifest.json)
+          echo "Current version: $VERSION"
+          echo "current_version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Bump Version
+        id: bump_version
+        run: |
+          # Simple python script to bump version
+          python3 -c "
+          import json
+          import sys
+          
+          bump_type = '${{ inputs.bump_type }}'
+          manifest_path = 'custom_components/vinfast/manifest.json'
+          
+          with open(manifest_path, 'r') as f:
+              data = json.load(f)
+              
+          major, minor, patch = map(int, data['version'].split('.'))
+          
+          if bump_type == 'major':
+              major += 1
+              minor = 0
+              patch = 0
+          elif bump_type == 'minor':
+              minor += 1
+              patch = 0
+          else:
+              patch += 1
+              
+          new_version = f'{major}.{minor}.{patch}'
+          data['version'] = new_version
+          
+          with open(manifest_path, 'w') as f:
+              json.dump(data, f, indent=2)
+              
+          print(new_version)
+          " > new_version.txt
+          
+          NEW_VERSION=$(cat new_version.txt)
+          echo "New Version: $NEW_VERSION"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          rm new_version.txt
+
+      - name: Commit & Push New Version
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          git add custom_components/vinfast/manifest.json
+          git commit -m "Bump version to ${{ steps.bump_version.outputs.new_version }}"
+          git push
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.bump_version.outputs.new_version }}
+          name: v${{ steps.bump_version.outputs.new_version }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
