@@ -125,7 +125,6 @@ class VinFastOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
         self._pairing: VinFastPairing | None = None
         self._qr_params: dict[str, str] = {}
         self._encrypted_csr: str = ""

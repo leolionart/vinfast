@@ -24,86 +24,89 @@ Nếu bạn là người mới sử dụng Home Assistant, hãy làm theo các b
 
 Trước khi chạy script cài đặt, bạn cần cài đặt một số thứ sau:
 
-1.  **"Terminal & SSH" Add-on** (Để chạy lệnh cài đặt):
-    *   Truy cập **Settings (Cài đặt) > Add-ons > Add-on Store**.
-    *   Tìm kiếm **"Terminal & SSH"**.
-    *   Nhấn **Install (Cài đặt)** sau đó nhấn **Start (Khởi động)**.
-    *   *Mẹo: Bật "Show in sidebar" (Hiển thị ở thanh bên) để dễ dàng truy cập.*
+1. **"Terminal & SSH" Add-on** (Để chạy lệnh cài đặt):
 
-2.  **Cài Đặt HACS** (Nếu bạn chưa có):
-    *   **Yêu cầu**: Bạn cần có tài khoản GitHub. [Đăng ký tại đây](https://github.com/join) nếu chưa có.
-    *   Mở **Terminal** vừa cài đặt ở bước 1.
-    *   Gõ lệnh sau và nhấn Enter:
-        ```bash
-        wget -O - https://get.hacs.xyz | bash
-        ```
-    *   Sau khi chạy xong, hãy **Khởi động lại Home Assistant**.
-    *   Sau khi khởi động lại, vào **Settings > Devices & Services > Add Integration**, tìm kiếm "HACS".
-    *   Tích chọn tất cả các ô xác nhận và nhấn Submit.
-    *   Copy mã code hiển thị, nhấn vào link GitHub, đăng nhập và cấp quyền (Authorize) cho HACS.
-    *   Xong! HACS đã được cài đặt (bạn có thể cần xóa cache trình duyệt nếu chưa thấy nó hiện ở thanh bên).
+   * Truy cập **Settings (Cài đặt) > Add-ons > Add-on Store**.
+   * Tìm kiếm **"Terminal & SSH"**.
+   * Nhấn **Install (Cài đặt)** sau đó nhấn **Start (Khởi động)**.
+   * *Mẹo: Bật "Show in sidebar" (Hiển thị ở thanh bên) để dễ dàng truy cập.*
+2. **Cài Đặt HACS** (Nếu bạn chưa có):
 
-3.  **Cài Đặt VinFast Plugin** (Đây là bước quan trọng nhất):
-    *   Mở **HACS** trong Home Assistant.
-    *   Chọn **Integrations**.
-    *   Nhấn dấu 3 chấm góc trên phải > **Custom repositories**.
-    *   Dán link kho lưu trữ này vào: `https://github.com/leolionart/vinfast`
-    *   Chọn category là **Integration**.
-    *   Nhấn **Add**.
-    *   Sau đó tìm "VinFast Connected Car" trong danh sách và nhấn **Download**.
-    *   Khởi động lại Home Assistant.
+   * **Yêu cầu**: Bạn cần có tài khoản GitHub. [Đăng ký tại đây](https://github.com/join) nếu chưa có.
+   * Mở **Terminal** vừa cài đặt ở bước 1.
+   * Gõ lệnh sau và nhấn Enter:
+     ```bash
+     wget -O - https://get.hacs.xyz | bash
+     ```
+   * Sau khi chạy xong, hãy **Khởi động lại Home Assistant**.
+   * Sau khi khởi động lại, vào **Settings > Devices & Services > Add Integration**, tìm kiếm "HACS".
+   * Tích chọn tất cả các ô xác nhận và nhấn Submit.
+   * Copy mã code hiển thị, nhấn vào link GitHub, đăng nhập và cấp quyền (Authorize) cho HACS.
+   * Xong! HACS đã được cài đặt (bạn có thể cần xóa cache trình duyệt nếu chưa thấy nó hiện ở thanh bên).
+3. **Cài Đặt VinFast Plugin** (Đây là bước quan trọng nhất):
 
-4.  **Custom Cards** (Qua HACS - Bắt buộc để dashboard hiển thị đúng):
-    *   Truy cập **HACS > Frontend**.
-    *   Nhấn **+ Explore & Download Repositories**.
-    *   Tìm kiếm và cài đặt 3 card sau:
-        1.  `button-card`
-        2.  `layout-card`
-        3.  `card-mod`
-    *   **Khởi động lại Home Assistant** lần nữa sau khi cài xong.
+   * Mở **HACS** trong Home Assistant.
+   * Chọn **Integrations**.
+   * Nhấn dấu 3 chấm góc trên phải > **Custom repositories**.
+   * Dán link kho lưu trữ này vào: `https://github.com/leolionart/vinfast`
+   * Chọn category là **Integration**.
+   * Nhấn **Add**.
+   * Sau đó tìm "VinFast Connected Car" trong danh sách và nhấn **Download**.
+   * Khởi động lại Home Assistant.
+4. **Custom Cards** (Qua HACS - Bắt buộc để dashboard hiển thị đúng):
 
-### Bước 2: Chạy Trình Cài Đặt Tự Động (Wizard)
-
-Bây giờ chúng ta sẽ chạy một đoạn mã đơn giản để tự động viết code cho dashboard.
-
-1.  Mở **Terminal** (từ thanh bên hoặc menu Add-ons).
-2.  Gõ lệnh sau để đi đến thư mục plugin:
-    ```bash
-    cd /config/custom_components/vinfast
-    ```
-3.  Chạy trình cài đặt:
-    ```bash
-    python3 setup_dashboard.py
-    ```
-4.  **Làm theo các hướng dẫn trên màn hình:**
-    *   **Entity Prefix**: Nhập tiền tố entity của bạn. (ví dụ: nếu cảm biến của bạn là `sensor.vf8_battery`, hãy gõ `vf8`).
-    *   **Choice (Lựa chọn)**: Gõ `1` cho Dashboard Full (Wall Panel) hoặc `2` cho Card Đơn giản.
+   * Truy cập **HACS > Frontend**.
+   * Nhấn **+ Explore & Download Repositories**.
+   * Tìm kiếm và cài đặt 3 card sau:
+     1. `button-card`
+     2. `layout-card`
+     3. `card-mod`
+   * **Khởi động lại Home Assistant** lần nữa sau khi cài xong.
 
 ### Bước 2: Chạy Trình Cài Đặt Tự Động (Wizard)
 
 Bây giờ chúng ta sẽ chạy một đoạn mã đơn giản để tự động viết code cho dashboard.
 
-1.  Mở **Terminal** (từ thanh bên hoặc menu Add-ons).
-2.  Gõ lệnh sau để đi đến thư mục plugin:
-    ```bash
-    cd /config/custom_components/vinfast
-    ```
-3.  Chạy trình cài đặt:
-    ```bash
-    python3 setup_dashboard.py
-    ```
-4.  **Làm theo các hướng dẫn trên màn hình:**
-    *   **Entity Prefix**: Nhập tiền tố entity của bạn. (ví dụ: nếu cảm biến của bạn là `sensor.vf8_battery`, hãy gõ `vf8`).
-    *   **Choice (Lựa chọn)**: Gõ `1` cho Dashboard Full (Wall Panel) hoặc `2` cho Card Đơn giản.
+![Terminal](https://storage.googleapis.com/prod-omniagent/images/Image-734x319-20260118-023313.png)
+
+1. Mở **Terminal** (từ thanh bên hoặc menu Add-ons).
+2. Gõ lệnh sau để đi đến thư mục plugin:
+   ```bash
+   cd /config/custom_components/vinfast
+   ```
+3. Chạy trình cài đặt:
+   ```bash
+   python3 setup_dashboard.py
+   ```
+4. **Làm theo các hướng dẫn trên màn hình:**
+   * **Entity Prefix**: Nhập tiền tố entity của bạn. (ví dụ: nếu cảm biến của bạn là `sensor.vf8_battery`, hãy gõ `vf8`).
+   * **Choice (Lựa chọn)**: Gõ `1` cho Dashboard Full (Wall Panel) hoặc `2` cho Card Đơn giản.
+
+### Bước 2: Chạy Trình Cài Đặt Tự Động (Wizard)
+
+Bây giờ chúng ta sẽ chạy một đoạn mã đơn giản để tự động viết code cho dashboard.
+
+1. Mở **Terminal** (từ thanh bên hoặc menu Add-ons).
+2. Gõ lệnh sau để đi đến thư mục plugin:
+   ```bash
+   cd /config/custom_components/vinfast
+   ```
+3. Chạy trình cài đặt:
+   ```bash
+   python3 setup_dashboard.py
+   ```
+4. **Làm theo các hướng dẫn trên màn hình:**
+   * **Entity Prefix**: Nhập tiền tố entity của bạn. (ví dụ: nếu cảm biến của bạn là `sensor.vf8_battery`, hãy gõ `vf8`).
+   * **Choice (Lựa chọn)**: Gõ `1` cho Dashboard Full (Wall Panel) hoặc `2` cho Card Đơn giản.
 
 ### Bước 3: Thêm Vào Dashboard
 
-1.  Script sẽ thông báo đã lưu một file (ví dụ: `my_vinfast_dashboard.yaml`).
-2.  Mở file đó ra (bạn có thể dùng add-on **File Editor**) và copy toàn bộ nội dung.
-3.  Đi đến **Dashboard** của bạn.
-4.  Nhấn **Edit Dashboard** (biểu tượng cây bút).
-5.  **Dành cho Card Đơn giản**: Nhấn **Add Card** > Kéo xuống chọn **Manual** > Dán nội dung đã copy vào.
-6.  **Dành cho Wall Panel**: Nhấn vào dấu 3 chấm góc trên cùng > **Raw Configuration Editor** (nếu muốn thay thế toàn bộ giao diện), HOẶC tạo một View mới và chọn chế độ "Panel".
+1. Script sẽ thông báo đã lưu một file (ví dụ: `my_vinfast_dashboard.yaml`).
+2. Mở file đó ra (bạn có thể dùng add-on **File Editor**) và copy toàn bộ nội dung.
+3. Đi đến **Dashboard** của bạn.
+4. Nhấn **Edit Dashboard** (biểu tượng cây bút).
+5. **Dành cho Card Đơn giản**: Nhấn **Add Card** > Kéo xuống chọn **Manual** > Dán nội dung đã copy vào.
+6. **Dành cho Wall Panel**: Nhấn vào dấu 3 chấm góc trên cùng > **Raw Configuration Editor** (nếu muốn thay thế toàn bộ giao diện), HOẶC tạo một View mới và chọn chế độ "Panel".
 
 ## Cài Đặt qua HACS
 

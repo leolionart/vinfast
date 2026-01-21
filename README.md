@@ -2,7 +2,6 @@
 
 [**🇻🇳 Đọc tài liệu bằng tiếng Việt**](README_vi.md)
 
-
 ![VinFast Logo](images/logo.png)
 
 This custom component integrates **VinFast** vehicles into Home Assistant options for monitoring your car's status, including battery level, range, tire pressure, and more.
@@ -27,69 +26,72 @@ If you are new to Home Assistant, follow these steps to set up a beautiful dashb
 
 Before running the setup script, you need a few things installed:
 
-1.  **"Terminal & SSH" Add-on** (To run installation commands):
-    *   Go to **Settings > Add-ons > Add-on Store**.
-    *   Search for "Terminal & SSH".
-    *   Click **Install** and then **Start**.
-    *   *Tip: Enable "Show in sidebar" for easy access.*
+1. **"Terminal & SSH" Add-on** (To run installation commands):
 
-2.  **Install HACS** (If you don't have it):
-    *   **Prerequisite**: You need a GitHub account. [Sign up here](https://github.com/join) if you don't have one.
-    *   Open **Terminal** (from step 1).
-    *   Run this command:
-        ```bash
-        wget -O - https://get.hacs.xyz | bash
-        ```
-    *   Once finished, **Restart Home Assistant**.
-    *   After restart, go to **Settings > Devices & Services**.
-    *   Click **Add Integration**, search for "HACS".
-    *   Check all the confirmation boxes and submit.
-    *   Copy the code shown, click the GitHub link, sign in, and authorize HACS.
-    *   Done! HACS is now installed (you might need to clear your browser cache if you don't see it in the sidebar).
+   * Go to **Settings > Add-ons > Add-on Store**.
+   * Search for "Terminal & SSH".
+   * Click **Install** and then **Start**.
+   * *Tip: Enable "Show in sidebar" for easy access.*
+2. **Install HACS** (If you don't have it):
 
-3.  **Install VinFast Plugin** (Crucial Step):
-    *   Open **HACS** in Home Assistant.
-    *   Go to **Integrations**.
-    *   Click the 3 dots (top right) > **Custom repositories**.
-    *   Paste this repo URL: `https://github.com/leolionart/vinfast`
-    *   Select **Integration** category -> **Add**.
-    *   Find "VinFast Connected Car" in the list and **Download**.
-    *   **Restart Home Assistant**.
+   * **Prerequisite**: You need a GitHub account. [Sign up here](https://github.com/join) if you don't have one.
+   * Open **Terminal** (from step 1).
+   * Run this command:
+     ```bash
+     wget -O - https://get.hacs.xyz | bash
+     ```
+   * Once finished, **Restart Home Assistant**.
+   * After restart, go to **Settings > Devices & Services**.
+   * Click **Add Integration**, search for "HACS".
+   * Check all the confirmation boxes and submit.
+   * Copy the code shown, click the GitHub link, sign in, and authorize HACS.
+   * Done! HACS is now installed (you might need to clear your browser cache if you don't see it in the sidebar).
+3. **Install VinFast Plugin** (Crucial Step):
 
-4.  **Custom Cards** (Via HACS - Required for the dashboard):
-    *   Go to **HACS > Frontend**.
-    *   Click **+ Explore & Download Repositories**.
-    *   Search for and install these three:
-        1.  `button-card`
-        2.  `layout-card`
-        3.  `card-mod`
-    *   **Restart Home Assistant** again after installing.
+   * Open **HACS** in Home Assistant.
+   * Go to **Integrations**.
+   * Click the 3 dots (top right) > **Custom repositories**.
+   * Paste this repo URL: `https://github.com/leolionart/vinfast`
+   * Select **Integration** category -> **Add**.
+   * Find "VinFast Connected Car" in the list and **Download**.
+   * **Restart Home Assistant**.
+4. **Custom Cards** (Via HACS - Required for the dashboard):
+
+   * Go to **HACS > Frontend**.
+   * Click **+ Explore & Download Repositories**.
+   * Search for and install these three:
+     1. `button-card`
+     2. `layout-card`
+     3. `card-mod`
+   * **Restart Home Assistant** again after installing.
 
 ### Step 2: Run the Setup Wizard
 
 Now we will run a simple script that writes the dashboard code for you.
 
-1.  Open **Terminal** (from the sidebar or Add-ons menu).
-2.  Type the following command to go to the plugin folder:
-    ```bash
-    cd /config/custom_components/vinfast
-    ```
-3.  Run the setup wizard:
-    ```bash
-    python3 setup_dashboard.py
-    ```
-4.  **Follow the on-screen prompts:**
-    *   **Entity Prefix**: It will ask for your prefix. (e.g., if your sensor is `sensor.vf8_battery`, type `vf8`).
-    *   **Choice**: Type `1` for a Full Wall Panel or `2` for a Simple Card.
+![Terminal](https://storage.googleapis.com/prod-omniagent/images/Image-734x319-20260118-023313.png)
+
+1. Open **Terminal** (from the sidebar or Add-ons menu).
+2. Type the following command to go to the plugin folder:
+   ```bash
+   cd /config/custom_components/vinfast
+   ```
+3. Run the setup wizard:
+   ```bash
+   python3 setup_dashboard.py
+   ```
+4. **Follow the on-screen prompts:**
+   * **Entity Prefix**: It will ask for your prefix. (e.g., if your sensor is `sensor.vf8_battery`, type `vf8`).
+   * **Choice**: Type `1` for a Full Wall Panel or `2` for a Simple Card.
 
 ### Step 3: Add to Dashboard
 
-1.  The script will tell you it saved a file (e.g., `my_vinfast_dashboard.yaml`).
-2.  Open that file (you can use the **File Editor** add-on) and copy all the text.
-3.  Go to your **Dashboard**.
-4.  Click **Edit Dashboard** (pencil icon).
-5.  **For Simple Card**: Click **Add Card** > Scroll down to **Manual** > Paste the text.
-6.  **For Wall Panel**: Click only the specific "Raw Configuration Editor" (3 dots > Raw config) if replacing the whole view, OR create a new View and use "Panel" mode.
+1. The script will tell you it saved a file (e.g., `my_vinfast_dashboard.yaml`).
+2. Open that file (you can use the **File Editor** add-on) and copy all the text.
+3. Go to your **Dashboard**.
+4. Click **Edit Dashboard** (pencil icon).
+5. **For Simple Card**: Click **Add Card** > Scroll down to **Manual** > Paste the text.
+6. **For Wall Panel**: Click only the specific "Raw Configuration Editor" (3 dots > Raw config) if replacing the whole view, OR create a new View and use "Panel" mode.
 
 ## Installation via HACS
 
