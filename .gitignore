@@ -36,3 +36,6 @@ Thumbs.db
 secrets.yaml
 .env
 credentials.json
+
+# Playwright MCP
+.playwright-mcp/
