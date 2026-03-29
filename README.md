@@ -1,136 +1,110 @@
-# VinFast Connected Car for Home Assistant
+🚗 VinFast Smart Integration cho Home Assistant
 
-[**🇻🇳 Đọc tài liệu bằng tiếng Việt**](README_vi.md)
+Tích hợp (Integration) siêu việt đưa chiếc ô tô điện VinFast của bạn vào hệ sinh thái Home Assistant. 
+Không chỉ đơn thuần là kéo thông số, Component này được trang bị các thuật toán Khoa học Dữ liệu (Data Science) đỉnh cao để biến Home Assistant thành một "Trung tâm phân tích viễn trắc" (Telemetry Hub) mạnh mẽ, hoạt động 24/7 mà không cần mở App điện thoại.
 
-![VinFast Logo](images/logo.png)
+✨ Các tính năng cốt lõi (Core Features)
 
-This custom component integrates **VinFast** vehicles into Home Assistant options for monitoring your car's status, including battery level, range, tire pressure, and more.
+🚀 Dữ liệu Thời gian thực (Real-time MQTT): 
 
-> **Note**: This integration focuses purely on tracking vehicle status through the VinFast app API. It does not include OCPP/Charging Station features.
+Sử dụng kết nối WebSockets trực tiếp tới AWS IoT Core của VinFast với cơ chế tự động vượt rào (Bypass) để duy trì luồng dữ liệu 24/7. Tự động trả lời ping từ T-Box của xe.
 
-## Supported Models
+🧠 Phân tích Động học Lượng tử (Smart Profiling): 
 
-- **VF e34**
-- **VF 3**
-- **VF 5**
-- **VF 6**
-- **VF 7**
-- **VF 8**
-- **VF 9**
+Thuật toán đếm tần suất mẫu tốc độ (Frequency Sampling) thông minh. Tự động loại bỏ nhiễu do dừng đèn đỏ và phân tích chính xác "Dải tốc độ tối ưu nhất" mỗi khi pin sụt 1%.
 
-## 🏁 Beginner's Guide: Dashboard Setup
+🔋 Quản lý Sạc Tức thời (Smart Charging): 
 
-If you are new to Home Assistant, follow these steps to set up a beautiful dashboard for your VinFast car.
+Bắt sự kiện Cắm/Rút súng sạc trong vài giây thông qua MQTT. Tự động tạo luồng ngầm để lấy hóa đơn sạc (Số kWh, Hiệu suất) từ máy chủ sau khi chốt phiên sạc.
 
-### Step 1: Install Requirements
+⏱️ Quản lý Chuyến đi: 
 
-Before running the setup script, you need a few things installed:
+Tự động nhận diện chuyến đi mới khi bánh xe lăn. Chốt sổ chuyến đi (Quãng đường, Chi phí điện/xăng quy đổi, Vận tốc trung bình) nếu xe đỗ tĩnh quá 30 phút.
 
-1. **"Terminal & SSH" Add-on** (To run installation commands):
+🗺️ GPS Tĩnh tâm (Anti-flicker Tracking): 
 
-   * Go to **Settings > Add-ons > Add-on Store**.
-   * Search for "Terminal & SSH".
-   * Click **Install** and then **Start**.
-   * *Tip: Enable "Show in sidebar" for easy access.*
-2. **Install HACS** (If you don't have it):
+Thuật toán làm tròn sai số vệ tinh (11 mét) để tọa độ device_tracker không bị nhảy loạn xạ khi xe đang đỗ tĩnh trong gara, giúp tiết kiệm tài nguyên cho Home Assistant.
 
-   * **Prerequisite**: You need a GitHub account. [Sign up here](https://github.com/join) if you don't have one.
-   * Open **Terminal** (from step 1).
-   * Run this command:
-     ```bash
-     wget -O - https://get.hacs.xyz | bash
-     ```
-   * Once finished, **Restart Home Assistant**.
-   * After restart, go to **Settings > Devices & Services**.
-   * Click **Add Integration**, search for "HACS".
-   * Check all the confirmation boxes and submit.
-   * Copy the code shown, click the GitHub link, sign in, and authorize HACS.
-   * Done! HACS is now installed (you might need to clear your browser cache if you don't see it in the sidebar).
-3. **Install VinFast Plugin** (Crucial Step):
+🎮 Điều khiển Từ xa Động (Dynamic Remote): 
 
-   * Open **HACS** in Home Assistant.
-   * Go to **Integrations**.
-   * Click the 3 dots (top right) > **Custom repositories**.
-   * Paste this repo URL: `https://github.com/leolionart/vinfast`
-   * Select **Integration** category -> **Add**.
-   * Find "VinFast Connected Car" in the list and **Download**.
-   * **Restart Home Assistant**.
-4. **Custom Cards** (Via HACS - Required for the dashboard):
+Tích hợp các nút bấm Mở khóa, Bật điều hòa, Tìm xe... Cấu trúc Entity ID được chuẩn hóa dạng [model]_[vin] giúp quản lý nhiều xe cùng lúc không bị xung đột.
 
-   * Go to **HACS > Frontend**.
-   * Click **+ Explore & Download Repositories**.
-   * Search for and install these three:
-     1. `button-card`
-     2. `layout-card`
-     3. `card-mod`
-   * **Restart Home Assistant** again after installing.
+📥 Hướng dẫn Cài đặt qua HACS (Khuyên dùng)
 
-### Step 2: Run the Setup Wizard
+Cách dễ nhất để cài đặt và nhận các bản cập nhật tự động là sử dụng HACS (Home Assistant Community Store).
 
-Now we will run a simple script that writes the dashboard code for you.
+1) Mở Home Assistant, truy cập vào menu HACS ở cột bên trái.
 
-![Terminal](https://storage.googleapis.com/prod-omniagent/images/Image-734x319-20260118-023313.png)
+2) Chọn mục Integrations (Tích hợp).
 
-1. Open **Terminal** (from the sidebar or Add-ons menu).
-2. Type the following command to go to the plugin folder:
-   ```bash
-   cd /config/custom_components/vinfast
-   ```
-3. Run the setup wizard:
-   ```bash
-   python3 setup_dashboard.py
-   ```
-4. **Follow the on-screen prompts:**
-   * **Entity Prefix**: It will ask for your prefix. (e.g., if your sensor is `sensor.vf8_battery`, type `vf8`).
-   * **Choice**: Type `1` for a Full Wall Panel or `2` for a Simple Card.
+3) Bấm vào biểu tượng 3 chấm ở góc trên cùng bên phải, chọn Custom repositories (Kho lưu trữ tùy chỉnh).
 
-### Step 3: Add to Dashboard
+4) Điền các thông tin sau:
 
-1. The script will tell you it saved a file (e.g., `my_vinfast_dashboard.yaml`).
-2. Open that file (you can use the **File Editor** add-on) and copy all the text.
-3. Go to your **Dashboard**.
-4. Click **Edit Dashboard** (pencil icon).
-5. **For Simple Card**: Click **Add Card** > Scroll down to **Manual** > Paste the text.
-6. **For Wall Panel**: Click only the specific "Raw Configuration Editor" (3 dots > Raw config) if replacing the whole view, OR create a new View and use "Panel" mode.
+Repository: [https://github.com/thangnd85/vinfast-connected-car]
 
-## Installation via HACS
+Category: Chọn Integration.
 
-1. Open **HACS** in Home Assistant.
-2. Go to **Integrations**.
-3. Click the three dots in the top right corner and select **Custom repositories**.
-4. Paste the URL of this repository.
-5. Select **Integration** as the category.
-6. Click **Add** and then install "VinFast Connected Car".
-7. Restart Home Assistant.
+5) Bấm Add (Thêm).
 
-## Configuration
+Đóng hộp thoại, lúc này bạn sẽ thấy Tích hợp "VinFast" xuất hiện trên màn hình HACS. Bấm vào nó và chọn Download (Tải về).
 
-1. Go to **Settings > Devices & Services**.
-2. Click **Add Integration** and search for **VinFast**.
-3. Enter your VinFast account credentials (email and password) and select your region.
-4. Your vehicle(s) will be discovered and added as devices.
+⚠️ Quan trọng: Khởi động lại Home Assistant của bạn.
 
-## Dashboard Options
+⚙️ Cấu hình Tích hợp (Configuration)
+Sau khi cài đặt và khởi động lại, bạn tiến hành đăng nhập vào xe:
 
-### Option 1: Full Wall Panel Dashboard
+1) Vào Cài đặt (Settings) -> Thiết bị & Dịch vụ (Devices & Services).
 
-A clear, glassmorphism-style dashboard perfect for wall-mounted tablets.
+2) Bấm nút Thêm tích hợp (Add Integration) ở góc dưới bên phải.
 
-* Run `python3 setup_dashboard.py` and select Option 1.
-* Requires `button-card`, `layout-card`, and `card-mod` from HACS.
+3) Gõ VinFast vào ô tìm kiếm và chọn nó.
 
-### Option 2: Simple Card
+4) Nhập Email và Mật khẩu tài khoản App VinFast của bạn. (Chỉ lưu trong Home Assistant, không gửi đến nơi nào khác)
 
-![VinFast Card](https://storage.googleapis.com/prod-omniagent/images/Image-518x752-20260117-032430.png)
+Home Assistant sẽ tự động quét, lấy mã VIN và sinh ra toàn bộ Cảm biến (Sensor) & Nút bấm (Button) với cấu trúc chuẩn:
 
-A comprehensive single card view to add to your existing dashboard.
+sensor.[model]_[vin]_[tên_cảm_biến] (VD: sensor.vf8_abcd1234_phan_tram_pin).
 
-* Run `python3 setup_dashboard.py` and select Option 2.
+🛠️ Cấu hình Tùy chọn nâng cao (Options)
+Tích hợp này cho phép bạn tính toán chi phí sạc và so sánh với xe xăng theo thời gian thực.
+Tại màn hình Quản lý Tích hợp VinFast, bấm vào nút Cấu hình (Configure) để thay đổi:
 
-- **Sensors**: Battery, Range, Charging Status, Odometer, Tire Pressures, Temperatures, etc.
-- **Binary Sensors**: Doors, Locks, Trunk, Hood.
-- **Switch**: Climate Control (Requires pairing).
+- Giá điện: Mặc định 4000 VNĐ/kWh.
 
-## Credits
+- Giá xăng quy đổi: Mặc định 20.000 VNĐ/Lít.
 
-Based on the work of the VinFast Owners community.
+- Mức tiêu thụ Điện tham chiếu (kWh/km).
+
+- Mức tiêu thụ Xăng tham chiếu (km/Lít).
+
+🎨 Giao diện điều khiển (Frontend / Dashboard)
+Kho lưu trữ này chỉ chứa mã nguồn Backend (Core Component) sinh ra các thực thể.
+Để có giao diện Digital Twin mô phỏng xe 3D và các bảng thống kê xịn xò, vui lòng truy cập và cài đặt Custom Card tại kho lưu trữ Frontend của chúng tôi:
+
+👉 [https://github.com/thangnd85/vinfast-digital-twin-card]
+
+🛡️ Tuyên bố Miễn trừ trách nhiệm (Disclaimer)
+
+Dự án này được phát triển bởi cộng đồng Open Source và KHÔNG phải là sản phẩm, cũng như không được chứng nhận hay liên kết chính thức với VinFast Auto.
+
+Mọi hành động tương tác, lấy dữ liệu và ra lệnh điều khiển từ xa (Mở khóa, Bật AC...) đều gọi qua API nội bộ của Ứng dụng di động VinFast. Người dùng hoàn toàn tự chịu trách nhiệm về mọi rủi ro (nếu có) đối với phương tiện của mình khi sử dụng tích hợp này.
+
+Mã nguồn cam kết không lưu trữ bất kỳ thông tin cá nhân hay mật khẩu nào ngoài phạm vi của bộ nhớ Home Assistant cục bộ của bạn.
+
+
+Để có giao diện đẹp, đọc thêm:
+
+[https://github.com/thangnd85/vinfast-digital-twin-card]
+
+<img width="484"  alt="image" src="https://github.com/user-attachments/assets/cd5410a9-936f-459e-ba8f-a7628413b85c" />
+
+<img width="484" alt="image" src="https://github.com/user-attachments/assets/ca1d18dc-8d4d-46f9-a87e-57c492bffb17" />
+<img width="485" alt="image" src="https://github.com/user-attachments/assets/9c972cde-e56d-49d9-b7f9-f9e1ec05fba3" />
+
+<img width="484" alt="image" src="https://github.com/user-attachments/assets/fd32dc0c-70e1-4619-977c-49c19a3a2424" />
+
+<img width="484" alt="image" src="https://github.com/user-attachments/assets/11f68c2d-4bdc-4003-8bdf-63b0e54c0600" />
+
+<img width="484"  alt="image" src="https://github.com/user-attachments/assets/a2f4a13a-4609-4833-9838-a163d9ff4b3f" />
+

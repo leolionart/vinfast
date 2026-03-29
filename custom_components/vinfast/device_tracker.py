@@ -1,94 +1,59 @@
-"""Device tracker platform for VinFast integration."""
-from __future__ import annotations
-
-from typing import Any
-
-from homeassistant.components.device_tracker import SourceType
+import logging
 from homeassistant.components.device_tracker.config_entry import TrackerEntity
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import slugify
 
 from .const import DOMAIN
-from .coordinator import VinFastDataUpdateCoordinator
 
+_LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
-) -> None:
-    """Set up VinFast device tracker based on a config entry."""
-    coordinator: VinFastDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+async def async_setup_entry(hass, config_entry, async_add_entities):
+    api = hass.data[DOMAIN][config_entry.entry_id]["api"]
+    async_add_entities([VinFastDeviceTracker(api)])
 
-    async_add_entities([VinFastDeviceTracker(coordinator)])
+class VinFastDeviceTracker(TrackerEntity):
+    def __init__(self, api):
+        self.api = api
+        self._attr_has_entity_name = True
+        self._attr_name = "Vị trí GPS"
+        
+        # =================================================================
+        model_slug = slugify(getattr(api, "vehicle_model_display", "VF")).replace("_", "")
+        vin_slug = api.vin.lower() if api.vin else "unknown"
+        
+        # Ép Unique ID mới
+        self._attr_unique_id = f"{model_slug}_{vin_slug}_tracker"
+        # Ép Entity ID chuẩn
+        self.entity_id = f"device_tracker.{model_slug}_{vin_slug}_vi_tri_gps"
+        # =================================================================
 
-
-class VinFastDeviceTracker(CoordinatorEntity[VinFastDataUpdateCoordinator], TrackerEntity):
-    """Representation of a VinFast vehicle tracker."""
-
-    _attr_has_entity_name = True
-    _attr_name = "Location"
-    _attr_icon = "mdi:car-connected"
-
-    def __init__(self, coordinator: VinFastDataUpdateCoordinator) -> None:
-        """Initialize the device tracker."""
-        super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.vin}_location"
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information about this VinFast vehicle."""
-        vehicles = self.coordinator.data.get("vehicles", []) if self.coordinator.data else []
-        vehicle = vehicles[0] if vehicles else {}
-
-        return DeviceInfo(
-            identifiers={(DOMAIN, self.coordinator.vin or "unknown")},
-            name=vehicle.get("customizedVehicleName", vehicle.get("vehicleName", "VinFast")),
+        veh_name = getattr(api, 'vehicle_name', '')
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, api.vin)},
+            name=f"{getattr(api, 'vehicle_model_display', 'VinFast')} {veh_name}".strip(),
             manufacturer="VinFast",
-            model=f"{vehicle.get('vehicleType', '')} {vehicle.get('vehicleVariant', '')}".strip(),
-            sw_version=str(vehicle.get("yearOfProduct", "")),
+            model=getattr(api, "vehicle_model_display", "EV"),
         )
 
     @property
-    def source_type(self) -> SourceType:
-        """Return the source type of the device tracker."""
-        return SourceType.GPS
+    def latitude(self):
+        lat = self.api._last_data.get("00006_00001_00000")
+        return float(lat) if lat else None
 
     @property
-    def latitude(self) -> float | None:
-        """Return latitude value of the device."""
-        if self.coordinator.data:
-            telemetry = self.coordinator.data.get("telemetry")
-            if telemetry and isinstance(telemetry, dict):
-                lat = telemetry.get("latitude")
-                if lat is not None:
-                    try:
-                        return float(lat)
-                    except (ValueError, TypeError):
-                        pass
-        return None
+    def longitude(self):
+        lon = self.api._last_data.get("00006_00001_00001")
+        return float(lon) if lon else None
 
     @property
-    def longitude(self) -> float | None:
-        """Return longitude value of the device."""
-        if self.coordinator.data:
-            telemetry = self.coordinator.data.get("telemetry")
-            if telemetry and isinstance(telemetry, dict):
-                lon = telemetry.get("longitude")
-                if lon is not None:
-                    try:
-                        return float(lon)
-                    except (ValueError, TypeError):
-                        pass
-        return None
+    def source_type(self):
+        return "gps"
 
     @property
-    def available(self) -> bool:
-        """Return if entity is available."""
-        if not self.coordinator.last_update_success:
-            return False
-        # Only available if we have location data
-        return self.latitude is not None and self.longitude is not None
+    def should_poll(self):
+        return False
+
+    async def async_added_to_hass(self):
+        def handle_new_data(data):
+            self.hass.loop.call_soon_threadsafe(self.async_write_ha_state)
+        self.api.add_callback(handle_new_data)

@@ -1,607 +1,455 @@
-"""VinFast Connected Car API Client."""
-from __future__ import annotations
-
+import os
+import json
+import time
 import logging
-from typing import Any
-
-import aiohttp
-import async_timeout
-
-from .const import (
-    AUTH0_DOMAIN,
-    AUTH0_CLIENT_ID,
-    AUTH0_AUDIENCE,
-    API_BASE,
-    DEFAULT_REGION,
-    REGIONS,
-)
+import threading
+import asyncio
+import datetime
+from .const import WWW_DIR, REGION_CONFIG, DEFAULT_AI_BASE_URL, DEFAULT_AI_MODEL
+from .api_auth import AuthManager
+from .api_mqtt import MQTTManager
+from .api_helpers import safe_float
+from .map_matching import async_process_route, moving_average_smooth
 
 _LOGGER = logging.getLogger(__name__)
 
-# Request ALL aliases mode - when True, requests all available aliases from server
-# This allows discovery of all available data points
-# Set to False for normal operation (requests only core aliases)
-REQUEST_ALL_ALIASES = False
+class VinFastAPI:
+    def __init__(
+        self,
+        email,
+        password,
+        vin=None,
+        vehicle_name="Xe VinFast",
+        region="VN",
+        lang="vi",
+        options=None,
+        ai_base_url=DEFAULT_AI_BASE_URL,
+        ai_api_key="",
+        ai_model=DEFAULT_AI_MODEL,
+    ):
+        self.email = email
+        self.password = password
+        self.region = region
+        self.lang = lang
+        self.ai_base_url = ai_base_url.strip() if ai_base_url else DEFAULT_AI_BASE_URL
+        self.ai_api_key = ai_api_key.strip() if ai_api_key else ""
+        self.ai_model = ai_model.strip() if ai_model else DEFAULT_AI_MODEL
+        self.vin = vin
+        self.user_id = None
+        self.vehicle_name = vehicle_name
+        self.vehicle_model_display = "Unknown" 
+        self.options = options or {}
+        
+        cfg = REGION_CONFIG.get(self.region, REGION_CONFIG["VN"])
+        self.auth0_domain = cfg["AUTH0_DOMAIN"]
+        self.auth0_client_id = cfg["AUTH0_CLIENT_ID"]
+        self.api_base = cfg["API_BASE"]
+        self.aws_region = cfg["AWS_REGION"]
+        self.cognito_pool_id = cfg["COGNITO_POOL_ID"]
+        self.iot_endpoint = cfg["IOT_ENDPOINT"]
+        
+        self.access_token = None
+        self._running = False
+        self.callbacks = []
+        
+        ai_state = ("Hệ thống AI đang chờ..." if self.lang == "vi" else "AI is waiting...") if self.ai_api_key else "DISABLED"
+        
+        self._last_data = {
+            "api_vehicle_status": "Đang kết nối..." if self.lang == "vi" else "Connecting...",
+            "api_current_address": "Đang tải..." if self.lang == "vi" else "Loading...",
+            "api_trip_route": "[]",
+            "api_nearby_stations": "[]",
+            "api_trip_distance": 0.0,
+            "api_trip_avg_speed": 0.0,
+            "api_trip_energy_used": 0.0,
+            "api_trip_efficiency": 0.0,
+            "api_live_charge_power": 0.0,
+            "api_last_charge_start_soc": 0.0, 
+            "api_last_charge_end_soc": 0.0,   
+            "api_last_lat": None, 
+            "api_last_lon": None,
+            "api_total_charge_sessions": 0,
+            "api_public_charge_sessions": 0, 
+            "api_total_energy_charged": 0.0,
+            "api_vehicle_name": self.vehicle_name,
+            "api_charge_history_list": "[]", 
+            "api_home_charge_kwh": 0.0,
+            "api_home_charge_sessions": 0,
+            "api_ai_advisor": ai_state,
+            "api_security_warning": "An toàn" if self.lang == "vi" else "Safe",
+            "api_best_efficiency_band": "Chưa đủ dữ liệu" if self.lang == "vi" else "Not enough data",
+            "api_est_range_degradation": 0.0,
+            "api_debug_raw": "Chờ kết nối MQTT..." if self.lang == "vi" else "Waiting for MQTT..."
+        }  
+        
+        self._is_moving = False
+        self._is_charging = False
+        self._last_is_charging = False 
+        self._last_actual_move_time = time.time()
+        self._last_lat_lon = ""
+        self._vehicle_offline = False
+        self._last_auto_wakeup_time = 0
+        
+        self._is_trip_active = False
+        self._trip_start_odo = 0.0
+        self._trip_start_time = time.time()
+        self._trip_start_soc = 100.0
+        self._trip_start_address = "Unknown"
+        self._route_coords = []
+        self._last_gps_time = time.time()
+        self._trip_accumulated_distance_m = 0.0
+        
+        self._eff_soc = None
+        self._eff_gps_dist = 0.0 
+        self._eff_time = None
+        self._eff_speeds = []
+        self._eff_stats = {}
+        
+        self._last_ai_anomaly_time = 0
+        self._last_ai_weather_time = 0
+        
+        self._charge_start_time = time.time()
+        self._charge_start_soc = 0.0
+        self._charge_calc_soc = 0.0
+        self._charge_calc_time = time.time()
+        self._current_charge_max_power = 0.0 
 
-# Core aliases that we always want (used for friendly name mapping)
-# These are the most commonly used data points
-CORE_TELEMETRY_ALIASES = [
-    # Battery & Charging
-    "VEHICLE_STATUS_HV_BATTERY_SOC",          # Battery state of charge (%)
-    "VEHICLE_STATUS_LV_BATTERY_SOC",          # 12V/Low voltage battery SOC (%)
-    "VEHICLE_STATUS_REMAINING_DISTANCE",      # Estimated range (km)
-    "VEHICLE_STATUS_ODOMETER",                # Real-time odometer (km)
-    "CHARGING_STATUS_CHARGING_STATUS",        # Charging state (ChargingState enum)
-    "CHARGING_STATUS_CHARGING_REMAINING_TIME", # Time to full charge (Long)
-    "CHARGE_CONTROL_CURRENT_TARGET_SOC",      # Charge limit/target SOC (%)
-    # Vehicle Status
-    "VEHICLE_STATUS_IGNITION_STATUS",         # Ignition on/off
-    "VEHICLE_STATUS_GEAR_POSITION",           # Gear position (P/R/N/D)
-    "VEHICLE_STATUS_VEHICLE_SPEED",           # Speed (km/h)
-    "VEHICLE_STATUS_HANDBRAKE_STATUS",        # Handbrake status
-    # Climate/Temperature
-    "VEHICLE_STATUS_AMBIENT_TEMPERATURE",     # Outside temp (C)
-    "CLIMATE_INFORMATION_DRIVER_TEMPERATURE", # Interior/driver temp (C)
-    # Tire Pressure
-    "VEHICLE_STATUS_FRONT_LEFT_TIRE_PRESSURE",
-    "VEHICLE_STATUS_FRONT_RIGHT_TIRE_PRESSURE",
-    "VEHICLE_STATUS_REAR_LEFT_TIRE_PRESSURE",
-    "VEHICLE_STATUS_REAR_RIGHT_TIRE_PRESSURE",
-    # Door Status
-    "DOOR_AJAR_FRONT_LEFT_DOOR_STATUS",
-    "DOOR_AJAR_FRONT_RIGHT_DOOR_STATUS",
-    "DOOR_AJAR_REAR_LEFT_DOOR_STATUS",
-    "DOOR_AJAR_REAR_RIGHT_DOOR_STATUS",
-    "DOOR_TRUNK_DOOR_STATUS",
-    # Remote Control Status
-    "REMOTE_CONTROL_DOOR_STATUS",
-    "REMOTE_CONTROL_BONNET_CONTROL_STATUS",
-    "REMOTE_CONTROL_WINDOW_STATUS",
-    "REMOTE_CONTROL_CHARGE_PORT_STATUS",
-    # Location
-    "LOCATION_LATITUDE",
-    "LOCATION_LONGITUDE",
-    "VEHICLE_BEARING_DEGREE",
-]
+        self._last_geocoded_grid = None
+        self._last_weather_fetch_time = 0 
+        self._last_mqtt_msg_time = time.time() 
+        self._geocode_lock = threading.Lock()
+        
+        self._raw_json_dict = {}
+        self._changelog_buffer = []
 
-# Fallback static resource paths (used if get-alias fails)
-# These paths are based on LwM2M Object IDs observed in the VinFast app
-FALLBACK_TELEMETRY_RESOURCES = [
-    "/34196/0/0",   # Battery level (%)
-    "/34196/0/1",   # Range estimate
-    "/34197/0/0",   # Charging status
-    "/34197/0/1",   # Charging power (kW)
-    "/34197/0/2",   # Time to full charge
-    "/34193/0/0",   # Charge limit (%)
-    "/34200/0/0",   # Vehicle latitude
-    "/34200/0/1",   # Vehicle longitude
-    "/34201/0/0",   # Lock status
-    "/34202/0/0",   # Climate status
-    # Try additional paths that might have odometer
-    # VinFast uses custom LwM2M objects in the 34xxx range
-    "/34189/0/0",   # Try various object IDs
-    "/34190/0/0",
-    "/34191/0/0",
-    "/34192/0/0",
-    "/34194/0/0",
-    "/34195/0/0",
-    "/34198/0/0",
-    "/34199/0/0",
-    "/34203/0/0",
-    "/34204/0/0",
-    "/34205/0/0",
-    "/34206/0/0",
-    "/34207/0/0",
-    "/34208/0/0",
-    "/34209/0/0",
-    "/34210/0/0",
-]
+        self.auth = AuthManager(self)
+        self.mqtt = MQTTManager(self)
 
+    def add_callback(self, cb):
+        if cb not in self.callbacks:
+            self.callbacks.append(cb)
+            if self._last_data: cb(self._last_data)
 
-class VinFastApiError(Exception):
-    """Exception for VinFast API errors."""
+    def trigger_callbacks(self):
+        if self.callbacks:
+            for cb in self.callbacks: cb(self._last_data)
 
+    def stop(self):
+        self._running = False
+        self.mqtt.stop()
 
-class VinFastAuthError(VinFastApiError):
-    """Exception for authentication errors."""
+    def login(self): return self.auth.login()
+    def get_vehicles(self): return self.auth.get_vehicles()
+    def start_mqtt(self): self.mqtt.start()
+    def send_remote_command(self, cmd, params=None): return self.auth.send_remote_command(cmd, params)
 
+    def _update_vehicle_name(self, candidate_name):
+        if not candidate_name: return
+        candidate = str(candidate_name).strip()
+        if len(candidate) < 2 or candidate.isnumeric() or candidate.lower() in ["0", "1", "none", "null", "unknown", "vinfast"]: return
+        if "profile_email" in candidate.lower(): return
+        self._last_data["api_vehicle_name"] = candidate
 
-class VinFastApi:
-    """VinFast Connected Car API Client."""
+    def inject_mock_data(self, payload_list):
+        class MockMsg:
+            def __init__(self, data): self.payload = json.dumps(data).encode('utf-8')
+        self.mqtt._on_message(None, None, MockMsg(payload_list))
 
-    def __init__(self, session: aiohttp.ClientSession, region: str = DEFAULT_REGION) -> None:
-        """Initialize the API client."""
-        self._session = session
-        self._region = region
-        self._region_config = REGIONS.get(region, REGIONS[DEFAULT_REGION])
-        self._access_token: str | None = None
-        self._refresh_token: str | None = None
-        self._user_id: str | None = None
-        self._vin: str | None = None
-        self._alias_mappings: dict[str, dict[str, str]] = {}  # alias -> {path, objectId, etc}
-        self._alias_version: str | None = None
+    def _process_console_command(self, cmd):
+        parts = cmd.lower().split()
+        if not parts: return
+        action = parts[0]
+        if action == "cs": self.inject_mock_data([{"deviceKey": "34193_00001_00005", "value": "1"}, {"deviceKey": "34183_00000_00001", "value": "1"}])
+        elif action == "rs": self.inject_mock_data([{"deviceKey": "34193_00001_00005", "value": "2"}, {"deviceKey": "34183_00000_00001", "value": "2"}])
+        elif action == "soc" and len(parts) > 1: self.inject_mock_data([{"deviceKey": "34183_00001_00009", "value": parts[1]}, {"deviceKey": "34180_00001_00011", "value": parts[1]}])
+        elif action == "ai": threading.Thread(target=self.mqtt._run_ai_advisor_wrapper, args=("trip", {"dist": 15.5, "drop": 6.0}), daemon=True).start()
 
-    @property
-    def auth0_domain(self) -> str:
-        """Return Auth0 domain for current region."""
-        return self._region_config["auth0_domain"]
-
-    @property
-    def auth0_client_id(self) -> str:
-        """Return Auth0 client ID for current region."""
-        return self._region_config["auth0_client_id"]
-
-    @property
-    def auth0_audience(self) -> str:
-        """Return Auth0 audience for current region."""
-        return self._region_config["auth0_audience"]
-
-    @property
-    def api_base(self) -> str:
-        """Return API base URL for current region."""
-        return self._region_config["api_base"]
-
-    @property
-    def vin(self) -> str | None:
-        """Return the VIN."""
-        return self._vin
-
-    @property
-    def user_id(self) -> str | None:
-        """Return the user ID."""
-        return self._user_id
-
-    async def authenticate(self, email: str, password: str) -> bool:
-        """Authenticate with VinFast Connected Car services."""
-        url = f"https://{self.auth0_domain}/oauth/token"
-
-        payload = {
-            "client_id": self.auth0_client_id,
-            "audience": self.auth0_audience,
-            "grant_type": "password",
-            "scope": "offline_access openid profile email",
-            "username": email,
-            "password": password,
-        }
-
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        }
-
+    def _calculate_advanced_stats(self):
         try:
-            async with async_timeout.timeout(30):
-                async with self._session.post(
-                    url, json=payload, headers=headers
-                ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        self._access_token = data["access_token"]
-                        self._refresh_token = data.get("refresh_token")
-                        _LOGGER.debug("Authentication successful")
-                        return True
-                    elif response.status == 401:
-                        raise VinFastAuthError("Invalid credentials")
-                    else:
-                        text = await response.text()
-                        _LOGGER.error("Auth failed: %s - %s", response.status, text)
-                        raise VinFastApiError(f"Authentication failed: {response.status}")
-        except aiohttp.ClientError as err:
-            _LOGGER.error("Connection error during auth: %s", err)
-            raise VinFastApiError(f"Connection error: {err}") from err
+            target_spec = getattr(self, '_vehicle_spec', {"capacity": 0, "range": 0})
+            cap = target_spec.get("capacity", 0)
+            ran = target_spec.get("range", 0)
+            
+            if cap > 0:
+                self._last_data["api_static_capacity"] = cap
+                self._last_data["api_static_range"] = ran
+                total_kwh = safe_float(self._last_data.get("api_total_energy_charged", 0))
+                odo = safe_float(self._last_data.get("34183_00001_00003", self._last_data.get("34199_00000_00000", 0)))
+                calc_max = 0
+                if total_kwh > 0 and odo > 0:
+                    lifetime_eff = (total_kwh / odo) * 100
+                    self._last_data["api_lifetime_efficiency"] = round(lifetime_eff, 2)
+                    if lifetime_eff > 0:
+                        calc_max = cap / (lifetime_eff / 100)
+                        self._last_data["api_calc_max_range"] = round(calc_max, 1)
 
-    async def refresh_auth(self) -> bool:
-        """Refresh the access token."""
-        if not self._refresh_token:
-            return False
-
-        url = f"https://{self.auth0_domain}/oauth/token"
-
-        payload = {
-            "client_id": self.auth0_client_id,
-            "grant_type": "refresh_token",
-            "refresh_token": self._refresh_token,
-        }
-
-        try:
-            async with async_timeout.timeout(30):
-                async with self._session.post(url, json=payload) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        self._access_token = data["access_token"]
-                        self._refresh_token = data.get("refresh_token", self._refresh_token)
-                        return True
-                    return False
-        except Exception as err:
-            _LOGGER.error("Token refresh failed: %s", err)
-            return False
-
-    def _get_headers(self) -> dict[str, str]:
-        """Build headers for API requests."""
-        headers = {
-            "Authorization": f"Bearer {self._access_token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "x-service-name": "CAPP",
-            "x-app-version": "1.10.3",
-            "x-device-platform": "HomeAssistant",
-            "x-device-family": "Integration",
-            "x-device-os-version": "1.0",
-            "x-device-locale": "en-US",
-            "x-timezone": "America/New_York",
-            "x-device-identifier": "ha-vinfast-integration",
-        }
-        if self._vin:
-            headers["x-vin-code"] = self._vin
-        if self._user_id:
-            headers["x-player-identifier"] = self._user_id
-        return headers
-
-    async def _api_request(
-        self, method: str, endpoint: str, data: dict | None = None
-    ) -> dict[str, Any]:
-        """Make an API request."""
-        url = f"{self.api_base}{endpoint}"
-
-        try:
-            async with async_timeout.timeout(30):
-                if method == "GET":
-                    async with self._session.get(
-                        url, headers=self._get_headers()
-                    ) as response:
-                        return await self._handle_response(response)
-                elif method == "POST":
-                    async with self._session.post(
-                        url, headers=self._get_headers(), json=data
-                    ) as response:
-                        return await self._handle_response(response)
-        except aiohttp.ClientError as err:
-            _LOGGER.error("API request failed: %s", err)
-            raise VinFastApiError(f"API request failed: {err}") from err
-
-    async def _handle_response(self, response: aiohttp.ClientResponse) -> dict[str, Any]:
-        """Handle API response."""
-        if response.status == 401:
-            if await self.refresh_auth():
-                raise VinFastApiError("Token refreshed, retry request")
-            raise VinFastAuthError("Authentication expired")
-
-        if response.status != 200:
-            text = await response.text()
-            raise VinFastApiError(f"API error {response.status}: {text}")
-
-        data = await response.json()
-        if data.get("code") not in (0, 200000):
-            raise VinFastApiError(f"API error: {data.get('message', 'Unknown error')}")
-
-        return data
-
-    async def get_vehicles(self) -> list[dict[str, Any]]:
-        """Get list of vehicles for the account."""
-        data = await self._api_request("GET", "/ccarusermgnt/api/v1/user-vehicle")
-        vehicles = data.get("data", [])
-
-        if vehicles:
-            self._vin = vehicles[0].get("vinCode")
-            self._user_id = vehicles[0].get("userId")
-
-        return vehicles
-
-    async def get_alias_mappings(self, version: str = "1.0") -> dict[str, dict[str, str]]:
-        """Fetch alias-to-resource-path mappings from the server.
-
-        This retrieves the dynamic mapping between human-readable aliases
-        (like VEHICLE_STATUS_ODOMETER) and LwM2M resource paths (like /34xxx/0/0).
-        """
-        if self._alias_mappings and self._alias_version == version:
-            return self._alias_mappings
-
-        try:
-            # This endpoint may have different response format, so we call it directly
-            url = f"{self.api_base}/modelmgmt/api/v2/vehicle-model/mobile-app/vehicle/get-alias?version={version}"
-
-            async with async_timeout.timeout(30):
-                async with self._session.get(url, headers=self._get_headers()) as response:
-                    if response.status != 200:
-                        _LOGGER.warning("get-alias returned status %s", response.status)
-                        return {}
-
-                    data = await response.json()
-                    _LOGGER.debug("get-alias response: %s", data)
-
-            # Parse the response - handle different possible formats
-            resources = []
-            if isinstance(data, dict):
-                # Try: {"data": {"resources": [...]}}
-                resources = data.get("data", {}).get("resources", [])
-                # Try: {"data": [...]}
-                if not resources and isinstance(data.get("data"), list):
-                    resources = data.get("data", [])
-                # Try: {"resources": [...]}
-                if not resources:
-                    resources = data.get("resources", [])
-            elif isinstance(data, list):
-                resources = data
-
-            mappings = {}
-            for resource in resources:
-                alias = resource.get("alias")
-                if alias:
-                    obj_id = resource.get("devObjID", "")
-                    inst_id = resource.get("devObjInstID", "0")
-                    rsrc_id = resource.get("devRsrcID", "0")
-
-                    # Build the resource path: /{objectId}/{instanceId}/{resourceId}
-                    path = f"/{obj_id}/{inst_id}/{rsrc_id}"
-
-                    mappings[alias] = {
-                        "path": path,
-                        "objectId": obj_id,
-                        "instanceId": inst_id,
-                        "resourceId": rsrc_id,
-                        "name": resource.get("name", ""),
-                        "units": resource.get("units", ""),
-                        "type": resource.get("type", ""),
-                    }
-
-            if mappings:
-                self._alias_mappings = mappings
-                self._alias_version = version
-                _LOGGER.debug("Loaded %d alias mappings from server", len(mappings))
-
-                # Log which of our requested aliases were found
-                found = [a for a in CORE_TELEMETRY_ALIASES if a in mappings]
-                missing = [a for a in CORE_TELEMETRY_ALIASES if a not in mappings]
-                _LOGGER.debug("Aliases found: %d, missing: %d", len(found), len(missing))
-
-            return mappings
-
-        except (aiohttp.ClientError, Exception) as err:
-            _LOGGER.warning("Failed to fetch alias mappings: %s", err)
-            return {}
-
-    async def get_profile(self) -> dict[str, Any]:
-        """Get user profile."""
-        data = await self._api_request(
-            "GET", "/ccarusermgnt/api/v1/auth0/account/profile"
-        )
-        return data.get("data", {})
-
-    async def get_telemetry(self) -> dict[str, Any] | None:
-        """Get vehicle telemetry data.
-
-        When REQUEST_ALL_ALIASES is True, requests ALL available aliases from the server.
-        This enables discovery of all data points the vehicle provides.
-        """
-        if not self._vin:
-            _LOGGER.info("TELEMETRY: No VIN available, skipping telemetry fetch")
-            return None
-
-        # Try to fetch alias mappings first (for dynamic resource paths)
-        alias_mappings = await self.get_alias_mappings()
-        _LOGGER.debug("Telemetry: alias_mappings returned %d mappings", len(alias_mappings) if alias_mappings else 0)
-
-        # Build request objects from alias mappings
-        # API expects: [{"instanceId": "1", "objectId": "34183", "resourceId": "3"}, ...]
-        request_objects = []
-        path_to_alias = {}  # Reverse mapping for parsing response
-
-        if alias_mappings:
-            if REQUEST_ALL_ALIASES:
-                # Request ALL available aliases for comprehensive data discovery
-                for alias, mapping in alias_mappings.items():
-                    path = mapping["path"]
-                    request_objects.append({
-                        "objectId": mapping["objectId"],
-                        "instanceId": mapping["instanceId"],
-                        "resourceId": mapping["resourceId"],
-                    })
-                    path_to_alias[path] = alias
-                _LOGGER.info("Telemetry: Requesting ALL %d aliases for comprehensive data", len(request_objects))
-            else:
-                # Use only core aliases
-                for alias in CORE_TELEMETRY_ALIASES:
-                    if alias in alias_mappings:
-                        mapping = alias_mappings[alias]
-                        path = mapping["path"]
-                        request_objects.append({
-                            "objectId": mapping["objectId"],
-                            "instanceId": mapping["instanceId"],
-                            "resourceId": mapping["resourceId"],
-                        })
-                        path_to_alias[path] = alias
-                _LOGGER.debug("Telemetry: Using %d core resources", len(request_objects))
-        else:
-            # Fallback to static paths - parse them into object format
-            for path in FALLBACK_TELEMETRY_RESOURCES:
-                parts = path.strip("/").split("/")
-                if len(parts) == 3:
-                    request_objects.append({
-                        "objectId": parts[0],
-                        "instanceId": parts[1],
-                        "resourceId": parts[2],
-                    })
-            _LOGGER.debug("Telemetry: Using %d fallback static resources", len(request_objects))
-
-        if not request_objects:
-            _LOGGER.warning("No telemetry resource paths available")
-            return None
-
-        _LOGGER.debug("Telemetry: Requesting %d resources", len(request_objects))
-
-        try:
-            # Use the "ping" endpoint which returns cached telemetry data
-            # This works even when the vehicle is asleep
-            data = await self._api_request(
-                "POST",
-                "/ccaraccessmgmt/api/v1/telemetry/app/ping",
-                request_objects,  # Send array directly, not wrapped in object
-            )
-            raw_data = data.get("data")
-            if not raw_data:
-                _LOGGER.debug("Telemetry: No data in response")
-                return None
-
-            _LOGGER.info("Telemetry: Received %d values out of %d requested",
-                        len(raw_data) if isinstance(raw_data, list) else 0,
-                        len(request_objects))
-
-            # Parse ping response - it's a list of VehiclePingResourceDto objects
-            return self._parse_ping_response(raw_data, path_to_alias, alias_mappings)
-        except VinFastApiError as err:
-            _LOGGER.debug("Telemetry request failed: %s", err)
-            return None
-
-    def _parse_ping_response(
-        self, raw_data: list, path_to_alias: dict[str, str] | None = None,
-        alias_mappings: dict[str, dict[str, str]] | None = None
-    ) -> dict[str, Any]:
-        """Parse ping response into friendly format.
-
-        Ping response is a list of objects like:
-        {
-            "resourceId": 3,
-            "instanceId": 1,
-            "objectId": 34183,
-            "deviceKey": "34183_00001_00003",
-            "value": "13059.5",
-            "lastUpdateTime": "2024-..."
-        }
-
-        deviceKey format is: {objectId}_{instanceId:05d}_{resourceId:05d}
-        """
-        result = {}
-        # Also store raw alias data for comprehensive monitoring
-        result["_raw_aliases"] = {}
-
-        if not isinstance(raw_data, list):
-            _LOGGER.debug("Telemetry: ping response is not a list: %s", type(raw_data))
-            return result
-
-        # Map core aliases to friendly keys for backward compatibility
-        alias_to_key = {
-            # Battery & Charging
-            "VEHICLE_STATUS_HV_BATTERY_SOC": "battery_level",
-            "VEHICLE_STATUS_LV_BATTERY_SOC": "lv_battery_level",
-            "VEHICLE_STATUS_REMAINING_DISTANCE": "range",
-            "VEHICLE_STATUS_ODOMETER": "odometer",
-            "CHARGING_STATUS_CHARGING_STATUS": "charging_status",
-            "CHARGING_STATUS_CHARGING_REMAINING_TIME": "time_to_full",
-            "CHARGE_CONTROL_CURRENT_TARGET_SOC": "charge_limit",
-            "CHARGE_CONTROL_SAMPLE_CHARGE_STATUS": "sample_charge_status",
-            # Vehicle Status
-            "VEHICLE_STATUS_IGNITION_STATUS": "ignition",
-            "VEHICLE_STATUS_GEAR_POSITION": "gear",
-            "VEHICLE_STATUS_VEHICLE_SPEED": "speed",
-            "VEHICLE_STATUS_HANDBRAKE_STATUS": "handbrake",
-            # Climate
-            "VEHICLE_STATUS_AMBIENT_TEMPERATURE": "outside_temp",
-            "CLIMATE_INFORMATION_DRIVER_TEMPERATURE": "inside_temp",
-            "CLIMATE_INFORMATION_STATUS": "climate_status",
-            # Tire Pressure
-            "VEHICLE_STATUS_FRONT_LEFT_TIRE_PRESSURE": "tire_pressure_fl",
-            "VEHICLE_STATUS_FRONT_RIGHT_TIRE_PRESSURE": "tire_pressure_fr",
-            "VEHICLE_STATUS_REAR_LEFT_TIRE_PRESSURE": "tire_pressure_rl",
-            "VEHICLE_STATUS_REAR_RIGHT_TIRE_PRESSURE": "tire_pressure_rr",
-            # Door Status
-            "DOOR_AJAR_FRONT_LEFT_DOOR_STATUS": "door_fl",
-            "DOOR_AJAR_FRONT_RIGHT_DOOR_STATUS": "door_fr",
-            "DOOR_AJAR_REAR_LEFT_DOOR_STATUS": "door_rl",
-            "DOOR_AJAR_REAR_RIGHT_DOOR_STATUS": "door_rr",
-            "DOOR_TRUNK_DOOR_STATUS": "trunk_status",
-            # Remote Control Status
-            "REMOTE_CONTROL_DOOR_STATUS": "locked",
-            "REMOTE_CONTROL_BONNET_CONTROL_STATUS": "hood_status",
-            "REMOTE_CONTROL_WINDOW_STATUS": "window_status",
-            "REMOTE_CONTROL_CHARGE_PORT_STATUS": "plugged_in",
-            # Location
-            "LOCATION_LATITUDE": "latitude",
-            "LOCATION_LONGITUDE": "longitude",
-            "VEHICLE_BEARING_DEGREE": "heading",
-        }
-
-        for item in raw_data:
-            if not isinstance(item, dict):
-                continue
-
-            device_key = item.get("deviceKey")
-            value = item.get("value")
-            last_update = item.get("lastUpdateTime")
-
-            if device_key and value is not None:
-
-                # Parse deviceKey format: 34183_00001_00003 -> /34183/1/3
-                parts = device_key.split("_")
-                if len(parts) == 3:
-                    obj_id = str(int(parts[0]))  # Remove leading zeros
-                    inst_id = str(int(parts[1]))  # Remove leading zeros
-                    rsrc_id = str(int(parts[2]))  # Remove leading zeros
-                    path = f"/{obj_id}/{inst_id}/{rsrc_id}"
+                if ran > 0 and calc_max > 0:
+                    degradation_range = ((ran - calc_max) / ran) * 100.0
+                    self._last_data["api_est_range_degradation"] = max(0.0, round(degradation_range, 2))
+                
+                charge_energy = safe_float(self._last_data.get("api_last_charge_energy", 0))
+                start_soc = safe_float(self._last_data.get("api_last_charge_start_soc", 0))
+                end_soc = safe_float(self._last_data.get("api_last_charge_end_soc", 0))
+                delta_soc = end_soc - start_soc
+                
+                if charge_energy > 0 and delta_soc >= 10.0:
+                    real_capacity = (charge_energy * 0.92) / (delta_soc / 100.0)
+                    soh_calc = (real_capacity / cap) * 100.0
+                    if 50.0 <= soh_calc <= 110.0: 
+                        self._last_data["api_soh_calculated"] = round(min(soh_calc, 100.0), 1)
                 else:
-                    path = device_key
+                    soh_raw = safe_float(self._last_data.get("34220_00001_00001", 100))
+                    self._last_data["api_soh_calculated"] = round(soh_raw, 1)
+                    
+            batt_pct = safe_float(self._last_data.get("34183_00001_00009", self._last_data.get("34180_00001_00011", 0)))
+            calc_max = safe_float(self._last_data.get("api_calc_max_range", 0))
+            
+            if calc_max > 0:
+                self._last_data["api_calc_range_per_percent"] = round(calc_max / 100.0, 2)
+                if batt_pct > 0: self._last_data["api_calc_remain_range"] = round(calc_max * (batt_pct / 100.0), 1)
+            elif ran > 0:
+                self._last_data["api_calc_range_per_percent"] = round(ran / 100.0, 2)
+                if batt_pct > 0: self._last_data["api_calc_remain_range"] = round(ran * (batt_pct / 100.0), 1)
 
-                # Get the alias name for this path
-                alias = path_to_alias.get(path, path) if path_to_alias else path
+            cost_per_kwh = safe_float(self.options.get("cost_per_kwh", 4000))
+            gas_price = safe_float(self.options.get("gas_price", 20000))
+            gas_km_per_liter = getattr(self, 'gas_km_per_liter', 15.0)
 
-                # Store in raw_aliases for comprehensive monitoring (use alias name as key)
+            total_kwh_charged = safe_float(self._last_data.get("api_total_energy_charged", 0))
+            self._last_data["api_total_charge_cost_est"] = round(total_kwh_charged * cost_per_kwh)
+
+            odo = safe_float(self._last_data.get("34183_00001_00003", self._last_data.get("34199_00000_00000", 0)))
+            if odo > 0 and gas_km_per_liter > 0:
+                self._last_data["api_total_gas_cost"] = round((odo / gas_km_per_liter) * gas_price)
+
+        except Exception: pass
+
+    # =================================================================================
+    # THUẬT TOÁN NẮN ĐƯỜNG NGẦM (HỖ TRỢ CẢ FILE CHÍNH VÀ FILE ARCHIVE)
+    # =================================================================================
+    async def async_smooth_trip_background(self, trip_id, raw_route, target_trip_file=None):
+        if not raw_route or len(raw_route) < 3: return
+
+        mapbox_token = self.options.get("mapbox_token", "")
+        stadia_token = self.options.get("stadia_token", "")
+
+        _LOGGER.warning(f"VinFast: [TRIP {trip_id}] Bắt đầu đẩy {len(raw_route)} tọa độ lên lưới AI Map Matching...")
+        smoothed_route = await async_process_route(self.hass, raw_route, mapbox_token, stadia_token)
+
+        # Nếu không truyền file cụ thể, mặc định lưu vào file chính
+        trip_file = target_trip_file if target_trip_file else os.path.join(WWW_DIR, f"vinfast_trips_{self.vin.lower()}.json")
+        try:
+            def update_json_file():
+                if not os.path.exists(trip_file): return False
+                with open(trip_file, 'r', encoding='utf-8') as f: trips = json.load(f)
+                
+                updated = False
+                for trip in trips:
+                    if str(trip.get("id")) == str(trip_id):
+                        trip["route"] = smoothed_route
+                        trip["is_smoothed"] = True
+                        updated = True
+                        break
+                        
+                if updated:
+                    with open(trip_file, 'w', encoding='utf-8') as f: json.dump(trips, f, ensure_ascii=False)
+                return updated
+
+            _LOGGER.warning(f"VinFast: [TRIP {trip_id}] Đã nắn xong! Đang ghi lại vào {os.path.basename(trip_file)}...")
+            updated = await self.hass.async_add_executor_job(update_json_file)
+            
+            if updated:
+                _LOGGER.warning(f"VinFast: [TRIP {trip_id}] -> GHI FILE JSON THÀNH CÔNG!")
+                if getattr(self, '_last_data', {}).get("api_trip_route") and "archive" not in trip_file:
+                    self._last_data["api_trip_route"] = json.dumps(smoothed_route)
+                    self.trigger_callbacks()
+            else:
+                _LOGGER.error(f"VinFast: [TRIP {trip_id}] Không tìm thấy ID trong file JSON để cập nhật.")
+                    
+        except Exception as e:
+            _LOGGER.error(f"VinFast: Lỗi khi ghi Cache nắn đường: {e}")
+
+    async def async_fix_all_historical_trips(self, force=False):
+        """Quét và nắn đường cho cả File Trip Chính và File Archive (Lưu trữ tháng)"""
+        vin_str = self.vin.lower()
+        now = datetime.datetime.now()
+        
+        # Tạo danh sách các file cần quét (File chính, file tháng này, file tháng trước)
+        prev_month = now.replace(day=1) - datetime.timedelta(days=1)
+        files_to_check = [
+            os.path.join(WWW_DIR, f"vinfast_trips_{vin_str}.json"),
+            os.path.join(WWW_DIR, f"vinfast_trips_archive_{vin_str}_{now.strftime('%Y_%m')}.json"),
+            os.path.join(WWW_DIR, f"vinfast_trips_archive_{vin_str}_{prev_month.strftime('%Y_%m')}.json")
+        ]
+
+        total_fixed = 0
+        for trip_file in files_to_check:
+            if not os.path.exists(trip_file): continue
+
+            try:
+                def read_trips():
+                    with open(trip_file, 'r', encoding='utf-8') as f: return json.load(f)
+                
+                trips = await self.hass.async_add_executor_job(read_trips)
+                pending_trips = []
+
+                for i, trip in enumerate(trips):
+                    is_recent = (i < 5)
+                    is_archived = "archive" in trip_file
+                    
+                    # Ưu tiên sửa chuyến chưa smooth. Nếu force=True thì chỉ ép nắn lại 5 chuyến gần nhất của file chính
+                    if not trip.get("is_smoothed", False) or (force and is_recent and not is_archived):
+                        pending_trips.append(trip)
+
+                if pending_trips:
+                    _LOGGER.warning(f"VinFast: Quét thấy {len(pending_trips)} chuyến đi cần nắn thẳng trong file {os.path.basename(trip_file)}")
+
+                for trip in pending_trips:
+                    raw_route = trip.get("route", [])
+                    if len(raw_route) > 2:
+                        await self.async_smooth_trip_background(trip.get("id"), raw_route, target_trip_file=trip_file)
+                        total_fixed += 1
+                        await asyncio.sleep(2.0) 
+                    else:
+                        trip["is_smoothed"] = True 
+                        def save_trip_ignore():
+                            with open(trip_file, 'w', encoding='utf-8') as f: json.dump(trips, f, ensure_ascii=False)
+                        await self.hass.async_add_executor_job(save_trip_ignore)
+            except Exception as e:
+                _LOGGER.error(f"VinFast: Lỗi khi đọc file {os.path.basename(trip_file)}: {e}")
+                
+        if total_fixed == 0:
+            _LOGGER.warning("VinFast: Bản đồ đã được tối ưu toàn bộ. Không có chuyến đi nào cần nắn thêm.")
+        else:
+            _LOGGER.warning(f"VinFast: HOÀN TẤT NẮN {total_fixed} CHUYẾN ĐI (Bao gồm cả Archive)!")
+
+    def _load_state(self):
+        if not self.vin: return
+        state_file = os.path.join(WWW_DIR, f"vinfast_state_{self.vin.lower()}.json")
+        charge_history_file = os.path.join(WWW_DIR, f"vinfast_charge_history_{self.vin.lower()}.json")
+        if os.path.exists(charge_history_file):
+            try:
+                with open(charge_history_file, 'r', encoding='utf-8') as f:
+                    self._last_data["api_charge_history_list"] = json.dumps(json.load(f))
+            except: pass
+        if os.path.exists(state_file):
+            try:
+                with open(state_file, 'r', encoding='utf-8') as f:
+                    saved_data = json.load(f)
+                    if "last_data" in saved_data: self._last_data.update(saved_data["last_data"])
+                    if "internal_memory" in saved_data:
+                        mem = saved_data["internal_memory"]
+                        self._is_trip_active = mem.get("is_trip_active", False)
+                        self._trip_start_odo = mem.get("trip_start_odo", 0.0)
+                        self._trip_start_time = mem.get("trip_start_time", time.time())
+                        self._trip_start_soc = mem.get("trip_start_soc", 100.0)
+                        self._trip_accumulated_distance_m = mem.get("trip_accumulated_distance_m", 0.0) 
+                        self._eff_soc = mem.get("eff_soc", None)
+                        self._eff_gps_dist = mem.get("eff_gps_dist", 0.0)
+                        self._eff_time = mem.get("eff_time", None)
+                        self._eff_stats = mem.get("eff_stats", {})
+                        self._charge_start_soc = mem.get("charge_start_soc", 0.0)
+                        self._charge_calc_soc = mem.get("charge_calc_soc", 0.0)
+                        self._charge_start_time = mem.get("charge_start_time", time.time())
+                        self._charge_calc_time = mem.get("charge_calc_time", time.time())
+                        self._is_charging = mem.get("is_charging", False)
+                        self._last_is_charging = mem.get("last_is_charging", False)
+                        self._current_charge_max_power = mem.get("current_charge_max_power", 0.0)
+                        
+                        lat_start = self._last_data.get("api_last_lat")
+                        lon_start = self._last_data.get("api_last_lon")
+                        if lat_start and lon_start: self._last_lat_lon = f"{lat_start},{lon_start}"
+            except Exception: pass
+        
+        vn = str(self._last_data.get("api_vehicle_name", ""))
+        if vn.lower() in ["0", "1", "unknown", "none", "", "vinfast"]:
+            self._last_data["api_vehicle_name"] = self.vehicle_model_display or "Xe VinFast"
+            
+        if hasattr(self, 'hass') and self.hass:
+            asyncio.run_coroutine_threadsafe(self.async_fix_all_historical_trips(force=False), self.hass.loop)
+
+    def _save_state(self):
+        if not self.vin: return
+        os.makedirs(WWW_DIR, exist_ok=True)
+        state_file = os.path.join(WWW_DIR, f"vinfast_state_{self.vin.lower()}.json")
+        changelog_file = os.path.join(WWW_DIR, f"vinfast_changelog_{self.vin.lower()}.json")
+        try:
+            self._last_data["api_debug_raw_json"] = json.dumps(self._raw_json_dict) if getattr(self, '_raw_json_dict', {}) else "{}"
+            data_to_save = {
+                "last_data": self._last_data.copy(),
+                "internal_memory": {
+                    "is_trip_active": getattr(self, '_is_trip_active', False),
+                    "trip_start_odo": getattr(self, '_trip_start_odo', 0.0),
+                    "trip_start_time": getattr(self, '_trip_start_time', time.time()),
+                    "trip_start_soc": getattr(self, '_trip_start_soc', 100.0),
+                    "trip_accumulated_distance_m": getattr(self, '_trip_accumulated_distance_m', 0.0), 
+                    "eff_soc": getattr(self, '_eff_soc', None),
+                    "eff_gps_dist": getattr(self, '_eff_gps_dist', 0.0),
+                    "eff_time": getattr(self, '_eff_time', None),
+                    "eff_stats": getattr(self, '_eff_stats', {}),
+                    "charge_start_soc": getattr(self, '_charge_start_soc', 0.0),
+                    "charge_calc_soc": getattr(self, '_charge_calc_soc', 0.0),
+                    "charge_start_time": getattr(self, '_charge_start_time', time.time()),
+                    "charge_calc_time": getattr(self, '_charge_calc_time', time.time()),
+                    "is_charging": getattr(self, '_is_charging', False),
+                    "last_is_charging": getattr(self, '_last_is_charging', False),
+                    "current_charge_max_power": getattr(self, '_current_charge_max_power', 0.0)
+                },
+                "unix_time": time.time()
+            }
+            with open(state_file, 'w', encoding='utf-8') as f: json.dump(data_to_save, f, ensure_ascii=False)
+            if hasattr(self, '_changelog_buffer') and len(self._changelog_buffer) > 0:
+                old_changelog = []
+                if os.path.exists(changelog_file):
+                    try:
+                        with open(changelog_file, 'r', encoding='utf-8') as cf: old_changelog = json.load(cf)
+                    except Exception: pass
+                merged_log = (self._changelog_buffer + old_changelog)[:100]
+                with open(changelog_file, 'w', encoding='utf-8') as cf: json.dump(merged_log, cf, ensure_ascii=False)
+                self._changelog_buffer = []
+        except Exception: pass
+
+    def _save_trip_history(self):
+        if not self.vin: return
+        try:
+            import datetime
+            os.makedirs(WWW_DIR, exist_ok=True)
+            # Việc ghi file archive sẽ do script bên ngoài xử lý, 
+            # API chỉ cần ghi vào file chính như bình thường.
+            trip_file = os.path.join(WWW_DIR, f"vinfast_trips_{self.vin.lower()}.json")
+            trips = []
+            if os.path.exists(trip_file):
                 try:
-                    parsed_value = float(value)
-                except (ValueError, TypeError):
-                    parsed_value = value
-
-                result["_raw_aliases"][alias] = {
-                    "value": parsed_value,
-                    "path": path,
-                    "last_update": last_update,
+                    with open(trip_file, 'r', encoding='utf-8') as f: trips = json.load(f)
+                except: pass
+            
+            dist = float(self._last_data.get("api_trip_distance", 0))
+            if dist > 0.05 or len(self._route_coords) > 2: 
+                start_dt = datetime.datetime.fromtimestamp(self._trip_start_time)
+                end_dt = datetime.datetime.now()
+                dur_mins = int((end_dt.timestamp() - self._trip_start_time) / 60)
+                start_addr = f"{self._route_coords[0][0]}, {self._route_coords[0][1]}" if self._route_coords else "Unknown"
+                end_addr = f"{self._route_coords[-1][0]}, {self._route_coords[-1][1]}" if self._route_coords else "Unknown"
+                
+                trip_id = int(end_dt.timestamp())
+                
+                draft_route = moving_average_smooth(self._route_coords, window=3)
+                
+                new_trip = {
+                    "id": trip_id, "date": start_dt.strftime("%d/%m/%Y"), "start_time": start_dt.strftime("%H:%M"),
+                    "end_time": end_dt.strftime("%H:%M"), "duration": dur_mins if dur_mins > 0 else 1, "distance": round(dist, 2),
+                    "start_address": start_addr, "end_address": end_addr, 
+                    "route": draft_route, 
+                    "is_smoothed": False 
                 }
+                trips.insert(0, new_trip) 
+                # Giới hạn giữ lại 50 chuyến ở file chính để tránh quá tải
+                with open(trip_file, 'w', encoding='utf-8') as f: json.dump(trips[:50], f, ensure_ascii=False)
 
-                # Use alias_to_key for backward-compatible friendly names
-                friendly_key = alias_to_key.get(alias, alias.lower())
-
-                # Store in main result with friendly key
-                result[friendly_key] = parsed_value
-
-        _LOGGER.debug("Telemetry: Parsed %d values", len(result) - 1)  # -1 for _raw_aliases
-
-        return result
-
-    async def get_locations(self) -> list[dict[str, Any]]:
-        """Get saved locations."""
-        try:
-            data = await self._api_request(
-                "GET", "/ccarusermgnt/api/v1/location-favorite"
-            )
-            return data.get("data", [])
-        except VinFastApiError:
-            return []
-
-    async def get_all_data(self) -> dict[str, Any]:
-        """Get all available vehicle data."""
-        result = {
-            "vehicles": [],
-            "profile": {},
-            "telemetry": None,
-            "locations": [],
-        }
-
-        try:
-            result["vehicles"] = await self.get_vehicles()
-        except VinFastApiError as err:
-            _LOGGER.warning("Failed to get vehicles: %s", err)
-
-        try:
-            result["profile"] = await self.get_profile()
-        except VinFastApiError as err:
-            _LOGGER.warning("Failed to get profile: %s", err)
-
-        try:
-            result["telemetry"] = await self.get_telemetry()
-        except VinFastApiError as err:
-            _LOGGER.debug("Telemetry unavailable: %s", err)
-
-        try:
-            result["locations"] = await self.get_locations()
-        except VinFastApiError as err:
-            _LOGGER.debug("Locations unavailable: %s", err)
-
-        return result
+                if hasattr(self, 'hass') and self.hass:
+                    asyncio.run_coroutine_threadsafe(
+                        self.async_smooth_trip_background(trip_id, draft_route, target_trip_file=trip_file),
+                        self.hass.loop
+                    )
+        except Exception as e: 
+            _LOGGER.error(f"VinFast: Lỗi lưu chuyến đi: {e}")

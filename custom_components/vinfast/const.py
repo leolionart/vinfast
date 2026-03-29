@@ -1,74 +1,62 @@
-"""Constants for the VinFast integration."""
+import os
 
 DOMAIN = "vinfast"
-
-# Region configuration
-CONF_REGION = "region"
-
-REGION_US = "us"
-REGION_EU = "eu"
-REGION_VN = "vn"
-
-REGIONS = {
-    REGION_US: {
-        "name": "United States",
-        "auth0_domain": "vinfast-us-prod.us.auth0.com",
-        "auth0_client_id": "xhGY7XKDFSk1Q22rxidvwujfz0EPAbUP",
-        "auth0_audience": "https://vinfast-us-prod.us.auth0.com/api/v2/",
-        "api_base": "https://mobile.connected-car.vinfastauto.us",
-    },
-    REGION_EU: {
-        "name": "Europe",
-        "auth0_domain": "vinfast-eu-prod.eu.auth0.com",
-        "auth0_client_id": "dxxtNkkhsPWW78x6s1BWQlmuCfLQrkze",
-        "auth0_audience": "https://vinfast-eu-prod.eu.auth0.com/api/v2/",
-        "api_base": "https://mobile.connected-car.vinfastauto.eu",
-    },
-    REGION_VN: {
-        "name": "Vietnam",
-        "auth0_domain": "vin3s.au.auth0.com",
-        "auth0_client_id": "jE5xt50qC7oIh1f32qMzA6hGznIU5mgH",
-        "auth0_audience": "https://vin3s.au.auth0.com/api/v2/",
-        "api_base": "https://mobile.connected-car.vinfast.vn",
-    },
-}
-
-# Default region
-DEFAULT_REGION = REGION_US
-
-# Legacy API Configuration (for backward compatibility)
-AUTH0_DOMAIN = REGIONS[REGION_US]["auth0_domain"]
-AUTH0_CLIENT_ID = REGIONS[REGION_US]["auth0_client_id"]
-AUTH0_AUDIENCE = REGIONS[REGION_US]["auth0_audience"]
-API_BASE = REGIONS[REGION_US]["api_base"]
-
-# Config keys
+CONF_MAPBOX_TOKEN = "mapbox_token"
+CONF_STADIA_TOKEN = "stadia_token"
 CONF_EMAIL = "email"
 CONF_PASSWORD = "password"
+CONF_AI_BASE_URL = "ai_base_url"
+CONF_AI_API_KEY = "ai_api_key"
+CONF_AI_MODEL = "ai_model"
+CONF_REGION = "region"
+CONF_LANGUAGE = "language"
 
-# Options keys
-CONF_UPDATE_INTERVAL = "update_interval"
+DEFAULT_AI_BASE_URL = "https://api.openai.com/v1"
+DEFAULT_AI_MODEL = "gpt-4o-mini"
 
-# Update intervals (seconds)
-# Default: 2.5 hours = ~10 polls per day (respectful of VinFast servers)
-UPDATE_INTERVAL_NORMAL = 9000  # 2.5 hours when idle (default) = ~10 polls/day
-
-# Update interval options (in hours for normal)
-UPDATE_INTERVAL_OPTIONS = {
-    "1 hour (~24/day)": 3600,
-    "2 hours (~12/day)": 7200,
-    "2.5 hours (~10/day, recommended)": 9000,
-    "4 hours (~6/day)": 14400,
-    "6 hours (~4/day)": 21600,
-    "8 hours (~3/day)": 28800,
-    "12 hours (~2/day)": 43200,
+# ==========================================
+# CẤU HÌNH ĐA VÙNG (MULTI-REGION)
+# ==========================================
+REGION_CONFIG = {
+    "VN": {
+        "AUTH0_DOMAIN": "vin3s.au.auth0.com",
+        "AUTH0_CLIENT_ID": "jE5xt50qC7oIh1f32qMzA6hGznIU5mgH",
+        "API_BASE": "https://mobile.connected-car.vinfast.vn",
+        "AWS_REGION": "ap-southeast-1",
+        "COGNITO_POOL_ID": "ap-southeast-1:c6537cdf-92dd-4b1f-99a8-9826f153142a",
+        "IOT_ENDPOINT": "prod.iot.connected-car.vinfast.vn"
+    },
+    "US": {
+        "AUTH0_DOMAIN": "vin3s.us.auth0.com", 
+        "AUTH0_CLIENT_ID": "jE5xt50qC7oIh1f32qMzA6hGznIU5mgH", 
+        "API_BASE": "https://api.us.vinfastauto.com",
+        "AWS_REGION": "us-east-1",
+        "COGNITO_POOL_ID": "us-east-1:xxxxxx-xxxx-xxxx-xxxx",
+        "IOT_ENDPOINT": "prod.iot.us.connected-car.vinfast.vn"
+    },
+    "EU": {
+        "AUTH0_DOMAIN": "vin3s.eu.auth0.com",
+        "AUTH0_CLIENT_ID": "jE5xt50qC7oIh1f32qMzA6hGznIU5mgH",
+        "API_BASE": "https://api.eu.vinfastauto.com",
+        "AWS_REGION": "eu-central-1",
+        "COGNITO_POOL_ID": "eu-central-1:xxxxxx-xxxx-xxxx",
+        "IOT_ENDPOINT": "prod.iot.eu.connected-car.vinfast.vn"
+    }
 }
 
-# Legacy - for backward compatibility
-UPDATE_INTERVAL = UPDATE_INTERVAL_NORMAL
+DEVICE_ID = "vfdashboard-community-edition"
 
-# Sensor types
-SENSOR_ODOMETER = "odometer"
-SENSOR_BATTERY = "battery"
-SENSOR_CHARGING = "charging"
-SENSOR_RANGE = "range"
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+HA_CONFIG_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", ".."))
+WWW_DIR = os.path.join(HA_CONFIG_DIR, "www")
+MOCK_FILE = os.path.join(WWW_DIR, "mock_console_cmd.txt")
+
+KNOWN_COMMANDS = {
+    1: ("Khóa cửa", "mdi:lock", "khoa_cua"),
+    2: ("Mở cửa", "mdi:lock-open", "mo_cua"),
+    3: ("Bấm còi", "mdi:bullhorn", "bam_coi"),
+    4: ("Nháy đèn", "mdi:car-light-high", "nhay_den"),
+    5: ("Bật điều hòa", "mdi:fan", "bat_dieu_hoa"),
+    6: ("Tắt điều hòa", "mdi:fan-off", "tat_dieu_hoa"),
+    7: ("Mở cốp", "mdi:car-back", "mo_cop"),
+}

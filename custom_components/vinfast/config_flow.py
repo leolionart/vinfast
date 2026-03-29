@@ -1,334 +1,97 @@
-"""Config flow for VinFast integration."""
-from __future__ import annotations
-
-import logging
-import uuid
-from typing import Any
-
-import aiohttp
 import voluptuous as vol
-
 from homeassistant import config_entries
-from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import callback
-from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+import logging
 
-from .api import VinFastApi, VinFastAuthError, VinFastApiError
 from .const import (
-    DOMAIN,
-    CONF_UPDATE_INTERVAL,
-    CONF_REGION,
-    DEFAULT_REGION,
-    REGIONS,
-    UPDATE_INTERVAL_NORMAL,
-    UPDATE_INTERVAL_OPTIONS,
+    DOMAIN, 
+    CONF_EMAIL, 
+    CONF_PASSWORD, 
+    CONF_AI_BASE_URL,
+    CONF_AI_API_KEY,
+    CONF_AI_MODEL,
+    CONF_REGION, 
+    CONF_LANGUAGE,
+    CONF_MAPBOX_TOKEN,
+    CONF_STADIA_TOKEN,
+    DEFAULT_AI_BASE_URL,
+    DEFAULT_AI_MODEL,
 )
-
-# Optional pairing support - requires cryptography library
-try:
-    from .pairing import VinFastPairing, VinFastPairingError
-    PAIRING_AVAILABLE = True
-except ImportError:
-    PAIRING_AVAILABLE = False
-    VinFastPairing = None  # type: ignore
-    VinFastPairingError = Exception  # type: ignore
 
 _LOGGER = logging.getLogger(__name__)
 
-# Build region selector options
-REGION_OPTIONS = {key: config["name"] for key, config in REGIONS.items()}
+REGIONS = {"VN": "Việt Nam (VN)", "US": "United States (US)", "EU": "Europe (EU)"}
+LANGUAGES = {"vi": "Tiếng Việt (VI)", "en": "English (EN)"}
 
-STEP_USER_DATA_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_REGION, default=DEFAULT_REGION): vol.In(REGION_OPTIONS),
-        vol.Required(CONF_EMAIL): str,
-        vol.Required(CONF_PASSWORD): str,
-    }
-)
+def safe_int(val, default):
+    try: return int(float(val))
+    except (ValueError, TypeError): return default
 
-CONF_QR_CODE = "qr_code"
-CONF_OTP = "otp"
-CONF_PAIRING_KEYS = "pairing_keys"
-
+def normalize_ai_base_url(base_url):
+    return (base_url or "").strip().rstrip("/")
 
 class VinFastConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for VinFast."""
-
     VERSION = 1
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle the initial step."""
-        errors: dict[str, str] = {}
+    def __init__(self):
+        self._setup_data = {}
 
+    async def async_step_user(self, user_input=None):
         if user_input is not None:
-            try:
-                # Test credentials
-                session = async_get_clientsession(self.hass)
-                region = user_input.get(CONF_REGION, DEFAULT_REGION)
-                api = VinFastApi(session, region=region)
+            user_input[CONF_AI_BASE_URL] = normalize_ai_base_url(user_input.get(CONF_AI_BASE_URL, DEFAULT_AI_BASE_URL))
+            self._setup_data.update(user_input)
+            await self.async_set_unique_id(self._setup_data[CONF_EMAIL].lower())
+            self._abort_if_unique_id_configured()
+            return self.async_create_entry(title=self._setup_data[CONF_EMAIL], data=self._setup_data)
 
-                await api.authenticate(
-                    user_input[CONF_EMAIL],
-                    user_input[CONF_PASSWORD],
-                )
-
-                # Get vehicles to verify access and get VIN for unique ID
-                vehicles = await api.get_vehicles()
-
-                if not vehicles:
-                    errors["base"] = "no_vehicles"
-                else:
-                    # Use first VIN as unique ID
-                    vin = vehicles[0].get("vinCode", "unknown")
-                    await self.async_set_unique_id(vin)
-                    self._abort_if_unique_id_configured()
-
-                    # Create entry with vehicle name
-                    vehicle_name = vehicles[0].get(
-                        "customizedVehicleName",
-                        vehicles[0].get("vehicleName", "VinFast"),
-                    )
-
-                    return self.async_create_entry(
-                        title=vehicle_name,
-                        data=user_input,
-                    )
-
-            except VinFastAuthError:
-                errors["base"] = "invalid_auth"
-            except VinFastApiError:
-                errors["base"] = "cannot_connect"
-            except Exception:  # pylint: disable=broad-except
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
-
-        return self.async_show_form(
-            step_id="user",
-            data_schema=STEP_USER_DATA_SCHEMA,
-            errors=errors,
-        )
+        data_schema = vol.Schema({
+            vol.Required(CONF_EMAIL): str,
+            vol.Required(CONF_PASSWORD): str,
+            vol.Required(CONF_REGION, default="VN"): vol.In(REGIONS),
+            vol.Required(CONF_LANGUAGE, default="vi"): vol.In(LANGUAGES),
+            vol.Optional(CONF_AI_BASE_URL, default=DEFAULT_AI_BASE_URL): str,
+            vol.Optional(CONF_AI_API_KEY, default=""): str,
+            vol.Optional(CONF_AI_MODEL, default=DEFAULT_AI_MODEL): str,
+            vol.Optional(CONF_MAPBOX_TOKEN, default=""): str,
+            vol.Optional(CONF_STADIA_TOKEN, default=""): str,
+        })
+        return self.async_show_form(step_id="user", data_schema=data_schema)
 
     @staticmethod
     @callback
-    def async_get_options_flow(
-        config_entry: config_entries.ConfigEntry,
-    ) -> VinFastOptionsFlow:
-        """Get the options flow for this handler."""
-        return VinFastOptionsFlow(config_entry)
+    def async_get_options_flow(config_entry):
+        return VinFastOptionsFlowHandler(config_entry)
 
+class VinFastOptionsFlowHandler(config_entries.OptionsFlow):
+    def __init__(self, config_entry):
+        self._config_entry = config_entry
 
-class VinFastOptionsFlow(config_entries.OptionsFlow):
-    """Handle VinFast options (including pairing for remote control)."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        self._pairing: VinFastPairing | None = None
-        self._qr_params: dict[str, str] = {}
-        self._encrypted_csr: str = ""
-        self._seed: str = ""
-        self._api: VinFastApi | None = None
-
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Manage the options."""
-        # Build menu options - only show pairing if cryptography is available
-        menu_options = ["configure_polling"]
-        if PAIRING_AVAILABLE:
-            menu_options.extend(["pair_remote", "unpair"])
-
-        return self.async_show_menu(
-            step_id="init",
-            menu_options=menu_options,
-            description_placeholders={
-                "is_paired": "Yes" if self.config_entry.options.get(CONF_PAIRING_KEYS) else "No"
-            },
-        )
-
-    async def async_step_configure_polling(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Configure telemetry update intervals."""
-        errors: dict[str, str] = {}
-
+    async def async_step_init(self, user_input=None):
         if user_input is not None:
-            # Save the options
-            new_options = dict(self.config_entry.options)
+            user_input[CONF_AI_BASE_URL] = normalize_ai_base_url(user_input.get(CONF_AI_BASE_URL, DEFAULT_AI_BASE_URL))
+            return self.async_create_entry(title="", data=user_input)
 
-            # Get update interval from selection
-            interval_selection = user_input.get(CONF_UPDATE_INTERVAL, "4 hours (recommended)")
-            new_options[CONF_UPDATE_INTERVAL] = UPDATE_INTERVAL_OPTIONS.get(
-                interval_selection, UPDATE_INTERVAL_NORMAL
-            )
+        opts = self._config_entry.options
+        data = self._config_entry.data
+        
+        current_region = opts.get(CONF_REGION, data.get(CONF_REGION, "VN"))
+        current_lang = opts.get(CONF_LANGUAGE, data.get(CONF_LANGUAGE, "vi"))
+        current_ai_base_url = opts.get(CONF_AI_BASE_URL, data.get(CONF_AI_BASE_URL, DEFAULT_AI_BASE_URL))
+        current_ai_api_key = opts.get(CONF_AI_API_KEY, data.get(CONF_AI_API_KEY, ""))
+        current_ai_model = opts.get(CONF_AI_MODEL, data.get(CONF_AI_MODEL, DEFAULT_AI_MODEL))
+        current_mapbox = opts.get(CONF_MAPBOX_TOKEN, data.get(CONF_MAPBOX_TOKEN, ""))
+        current_stadia = opts.get(CONF_STADIA_TOKEN, data.get(CONF_STADIA_TOKEN, ""))
 
-            return self.async_create_entry(title="", data=new_options)
-
-        # Get current values
-        current_interval = self.config_entry.options.get(
-            CONF_UPDATE_INTERVAL, UPDATE_INTERVAL_NORMAL
-        )
-
-        # Find the label for current interval value
-        default_interval = "4 hours (recommended)"
-        for label, value in UPDATE_INTERVAL_OPTIONS.items():
-            if value == current_interval:
-                default_interval = label
-                break
-
-        return self.async_show_form(
-            step_id="configure_polling",
-            data_schema=vol.Schema({
-                vol.Required(CONF_UPDATE_INTERVAL, default=default_interval): vol.In(
-                    list(UPDATE_INTERVAL_OPTIONS.keys())
-                ),
-            }),
-            errors=errors,
-        )
-
-    async def async_step_pair_remote(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Step 1: Enter QR code from car."""
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
-            qr_content = user_input.get(CONF_QR_CODE, "")
-
-            try:
-                # Initialize pairing handler
-                session = async_get_clientsession(self.hass)
-                self._pairing = VinFastPairing(session)
-                self._api = VinFastApi(session)
-
-                # Authenticate
-                await self._api.authenticate(
-                    self.config_entry.data[CONF_EMAIL],
-                    self.config_entry.data[CONF_PASSWORD],
-                )
-                await self._api.get_vehicles()
-
-                # Parse QR code
-                self._qr_params = self._pairing.parse_qr_code(qr_content)
-
-                # Validate VIN matches
-                self._pairing.validate_qr_for_vehicle(
-                    self._qr_params,
-                    self._api.vin or "",
-                    self._api.user_id,
-                )
-
-                # Generate keypair and CSR
-                self._pairing.generate_keypair()
-                device_id = str(uuid.uuid4())[:8]
-                csr = self._pairing.generate_csr(
-                    self._api.vin or "",
-                    device_id,
-                    "HomeAssistant"
-                )
-
-                # Encrypt CSR
-                self._encrypted_csr, self._seed = self._pairing.encrypt_csr(
-                    csr,
-                    self._qr_params["K"],
-                    self._api.vin or "",
-                )
-
-                # Trigger OTP
-                await self._pairing.verify_session(
-                    self._api._access_token or "",
-                    self._qr_params["ssid"],
-                    email=self.config_entry.data.get(CONF_EMAIL),
-                )
-
-                # Move to OTP step
-                return await self.async_step_enter_otp()
-
-            except VinFastPairingError as err:
-                _LOGGER.error("Pairing error: %s", err)
-                errors["base"] = "pairing_failed"
-            except VinFastAuthError:
-                errors["base"] = "invalid_auth"
-            except Exception as err:
-                _LOGGER.exception("Unexpected pairing error: %s", err)
-                errors["base"] = "unknown"
-
-        return self.async_show_form(
-            step_id="pair_remote",
-            data_schema=vol.Schema({
-                vol.Required(CONF_QR_CODE): str,
-            }),
-            errors=errors,
-            description_placeholders={
-                "instructions": "Go to your VinFast vehicle, open Settings > Remote Control > Pair New Device. Enter the QR code content shown on the screen."
-            },
-        )
-
-    async def async_step_enter_otp(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Step 2: Enter OTP received via email/phone."""
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
-            otp = user_input.get(CONF_OTP, "")
-
-            try:
-                if not self._pairing or not self._api:
-                    raise VinFastPairingError("Pairing session lost")
-
-                # Send pairing data with OTP
-                response = await self._pairing.send_pair_data(
-                    self._api._access_token or "",
-                    self._encrypted_csr,
-                    otp,
-                    self._seed,
-                    self._qr_params["ssid"],
-                    email=self.config_entry.data.get(CONF_EMAIL),
-                )
-
-                # Store keys in options
-                keys = self._pairing.export_keys()
-
-                return self.async_create_entry(
-                    title="",
-                    data={CONF_PAIRING_KEYS: keys},
-                )
-
-            except VinFastPairingError as err:
-                _LOGGER.error("OTP verification failed: %s", err)
-                errors["base"] = "invalid_otp"
-            except Exception as err:
-                _LOGGER.exception("Unexpected error: %s", err)
-                errors["base"] = "unknown"
-
-        return self.async_show_form(
-            step_id="enter_otp",
-            data_schema=vol.Schema({
-                vol.Required(CONF_OTP): str,
-            }),
-            errors=errors,
-            description_placeholders={
-                "instructions": "Enter the OTP code sent to your email or phone."
-            },
-        )
-
-    async def async_step_unpair(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Remove pairing keys."""
-        if user_input is not None:
-            # Clear pairing keys
-            return self.async_create_entry(
-                title="",
-                data={CONF_PAIRING_KEYS: None},
-            )
-
-        return self.async_show_form(
-            step_id="unpair",
-            description_placeholders={
-                "warning": "This will remove the remote control pairing. You'll need to re-pair at your vehicle to use remote commands again."
-            },
-        )
+        options_schema = vol.Schema({
+            vol.Required(CONF_REGION, default=current_region): vol.In(REGIONS),
+            vol.Required(CONF_LANGUAGE, default=current_lang): vol.In(LANGUAGES),
+            vol.Optional(CONF_AI_BASE_URL, default=current_ai_base_url): str,
+            vol.Optional(CONF_AI_API_KEY, default=current_ai_api_key): str,
+            vol.Optional(CONF_AI_MODEL, default=current_ai_model): str,
+            vol.Optional(CONF_MAPBOX_TOKEN, default=current_mapbox): str,
+            vol.Optional(CONF_STADIA_TOKEN, default=current_stadia): str,
+            vol.Required("cost_per_kwh", default=safe_int(opts.get("cost_per_kwh"), 4000)): vol.Coerce(int),
+            vol.Required("gas_price", default=safe_int(opts.get("gas_price"), 20000)): vol.Coerce(int),
+        })
+        
+        return self.async_show_form(step_id="init", data_schema=options_schema)
