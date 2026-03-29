@@ -5,6 +5,8 @@
 Component tùy chỉnh này tích hợp xe **VinFast** vào Home Assistant để theo dõi trạng thái xe, lịch sử chuyến đi, thống kê sạc, điều khiển từ xa và giao diện Digital Twin đi kèm.
 
 > **Lưu ý**: Bản hiện tại đã chuyển sang implementation MQTT/WebSocket và custom card đi kèm trong repo. Bộ YAML dashboard cũ không còn được dùng nữa.
+>
+> Chỉ cần cài từ repo này. Người dùng không cần add thêm repo upstream gốc vào HACS.
 
 ## Các Dòng Xe Được Hỗ Trợ
 
@@ -40,6 +42,8 @@ Component tùy chỉnh này tích hợp xe **VinFast** vào Home Assistant để
    * Category: **Integration**
    * Cài **VinFast Connected Car**
    * Khởi động lại Home Assistant
+
+Nếu trước đó đã từng add một repo `vinfast` khác, hãy gỡ custom repository cũ và uninstall integration cũ trước để Home Assistant không load nhầm bản khác.
 
 ### Bước 2: Cấu hình Integration
 

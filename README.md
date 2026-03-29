@@ -7,6 +7,8 @@
 This custom component integrates **VinFast** vehicles into Home Assistant for monitoring, remote actions, trip analytics, charging history, and a bundled Digital Twin dashboard experience.
 
 > **Note**: This build now uses the MQTT/WebSocket implementation and bundled custom-card assets. The old YAML dashboard templates are no longer used.
+>
+> Install from this repository only. Users do not need to add the original upstream repository to HACS.
 
 ## Supported Models
 
@@ -45,6 +47,8 @@ Before running the setup wizard, make sure you have:
    * Select **Integration**.
    * Install **VinFast Connected Car**.
    * Restart Home Assistant.
+
+If you already added another `vinfast` repository before, remove that old custom repository and uninstall its integration first so Home Assistant does not load the wrong copy.
 
 ### Step 2: Configure the Integration
 

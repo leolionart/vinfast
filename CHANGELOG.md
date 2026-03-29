@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
 
+## [2026-03-29 Fork Metadata Update]
+
+### Changed
+- Switched Home Assistant metadata links from the original upstream repository to this fork repository.
+- Added an explicit issue tracker entry for this fork so users are sent to the maintained repository.
+- Clarified in the installation guides that users only need to add this repository to HACS.
+
+### Fixed
+- Reduced the risk of users installing or troubleshooting against the wrong GitHub repository when setting up the integration via HACS.
+
 ## [2026-03-29 MQTT Migration Update]
 
 ### Added
