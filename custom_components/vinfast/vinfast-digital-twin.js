@@ -29,7 +29,7 @@ class VinFastDigitalTwin extends HTMLElement {
     
     this._effToggleTimer = null;
     this._effToggleState = false;
-    this._entityPrefix = null; 
+    this._entityPrefix = this.config.entity_prefix || this.config.entityPrefix || null; 
     this._lastAiMessage = ""; 
   }
 
