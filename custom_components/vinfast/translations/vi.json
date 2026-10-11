@@ -1,0 +1,137 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Đăng nhập tài khoản VinFast",
+        "description": "Nhập email và mật khẩu bạn dùng trên app VinFast.",
+        "data": {
+          "email": "Địa chỉ email",
+          "password": "Mật khẩu",
+          "uaa_client_instance_id": "UAA clientInstanceId",
+          "uaa_signature": "UAA signature",
+          "uaa_timestamp": "UAA timestamp",
+          "vinfast_private_key": "Khoá riêng VinFast (PEM)",
+          "gemini_api_key": "Khoá Gemini API",
+          "gemini_model": "Model Gemini",
+          "mapbox_token": "Token Mapbox",
+          "stadia_token": "Token Stadia",
+          "region": "Khu vực",
+          "language": "Ngôn ngữ",
+          "emqx_host": "Máy chủ MQTT: host (để trống = dùng const.py)",
+          "emqx_port": "Máy chủ MQTT: port (để trống = dùng const.py)",
+          "cost_per_kwh": "Giá điện mỗi kWh (VNĐ)",
+          "gas_price": "Giá xăng (VNĐ/lít)",
+          "control_private_key_pem": "Khoá riêng điều khiển (PEM)",
+          "control_share_key": "Khoá chia sẻ điều khiển",
+          "control_session_id": "Session ID điều khiển",
+          "control_master_profile": "Dùng hồ sơ chủ xe",
+          "control_wakeup_timeout_ms": "Thời gian chờ đánh thức (ms)",
+          "control_advanced_buttons": "Bật nút điều khiển mở rộng",
+          "vehicle": "Xe",
+          "vin": "Số VIN"
+        }
+      },
+      "select_vehicle": {
+        "title": "Chọn xe của bạn",
+        "description": "Các xe tìm thấy trong tài khoản. Chọn một xe để thêm.",
+        "data": {
+          "vin": "Số VIN",
+          "email": "Địa chỉ email",
+          "password": "Mật khẩu",
+          "region": "Khu vực",
+          "language": "Ngôn ngữ",
+          "gemini_api_key": "Khoá Gemini API",
+          "gemini_model": "Model Gemini",
+          "mapbox_token": "Token Mapbox",
+          "stadia_token": "Token Stadia",
+          "emqx_host": "Máy chủ MQTT: host (để trống = dùng const.py)",
+          "emqx_port": "Máy chủ MQTT: port (để trống = dùng const.py)",
+          "cost_per_kwh": "Giá điện mỗi kWh (VNĐ)",
+          "gas_price": "Giá xăng (VNĐ/lít)",
+          "uaa_client_instance_id": "UAA clientInstanceId",
+          "uaa_signature": "UAA signature",
+          "uaa_timestamp": "UAA timestamp",
+          "vinfast_private_key": "Khoá riêng VinFast (PEM)",
+          "control_private_key_pem": "Khoá riêng điều khiển (PEM)",
+          "control_share_key": "Khoá chia sẻ điều khiển",
+          "control_session_id": "Session ID điều khiển",
+          "control_master_profile": "Dùng hồ sơ chủ xe",
+          "control_wakeup_timeout_ms": "Thời gian chờ đánh thức (ms)",
+          "control_advanced_buttons": "Bật nút điều khiển mở rộng",
+          "vehicle": "Xe"
+        }
+      },
+      "init": {
+        "title": "Cấu hình Mở rộng VinFast",
+        "data": {
+          "email": "Địa chỉ email",
+          "password": "Mật khẩu",
+          "uaa_client_instance_id": "UAA clientInstanceId",
+          "uaa_signature": "UAA signature",
+          "uaa_timestamp": "UAA timestamp",
+          "vinfast_private_key": "Khoá riêng VinFast (PEM)",
+          "gemini_api_key": "Khoá Gemini API",
+          "gemini_model": "Model Gemini",
+          "mapbox_token": "Token Mapbox",
+          "stadia_token": "Token Stadia",
+          "region": "Khu vực",
+          "language": "Ngôn ngữ",
+          "cost_per_kwh": "Giá điện mỗi kWh (VNĐ)",
+          "gas_price": "Giá xăng (VNĐ/lít)",
+          "auto_smooth_trips": "Tự động làm mượt lộ trình (AI)",
+          "emqx_host": "Máy chủ MQTT: host (để trống = dùng const.py)",
+          "emqx_port": "Máy chủ MQTT: port (để trống = dùng const.py)",
+          "control_private_key_pem": "Khoá riêng điều khiển (PEM)",
+          "control_share_key": "Khoá chia sẻ điều khiển",
+          "control_session_id": "Session ID điều khiển",
+          "control_master_profile": "Dùng hồ sơ chủ xe",
+          "control_wakeup_timeout_ms": "Thời gian chờ đánh thức (ms)",
+          "control_advanced_buttons": "Bật nút điều khiển mở rộng",
+          "vehicle": "Xe",
+          "vin": "Số VIN"
+        }
+      }
+    },
+    "error": {
+      "auth_error": "Sai Email hoặc Mật khẩu, hoặc lỗi kết nối đến máy chủ VinFast.",
+      "no_vehicles": "Không tìm thấy chiếc xe nào trong tài khoản này."
+    },
+    "abort": {
+      "already_configured": "Tài khoản này đã được cài đặt rồi."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "emqx_host": "Máy chủ MQTT: host (để trống = dùng const.py)",
+          "emqx_port": "Máy chủ MQTT: port (để trống = dùng const.py)",
+          "email": "Địa chỉ email",
+          "password": "Mật khẩu",
+          "region": "Khu vực",
+          "language": "Ngôn ngữ",
+          "gemini_api_key": "Khoá Gemini API",
+          "gemini_model": "Model Gemini",
+          "mapbox_token": "Token Mapbox",
+          "stadia_token": "Token Stadia",
+          "cost_per_kwh": "Giá điện mỗi kWh (VNĐ)",
+          "gas_price": "Giá xăng (VNĐ/lít)",
+          "uaa_client_instance_id": "UAA clientInstanceId",
+          "uaa_signature": "UAA signature",
+          "uaa_timestamp": "UAA timestamp",
+          "vinfast_private_key": "Khoá riêng VinFast (PEM)",
+          "control_private_key_pem": "Khoá riêng điều khiển (PEM)",
+          "control_share_key": "Khoá chia sẻ điều khiển",
+          "control_session_id": "Session ID điều khiển",
+          "control_master_profile": "Dùng hồ sơ chủ xe",
+          "control_wakeup_timeout_ms": "Thời gian chờ đánh thức (ms)",
+          "control_advanced_buttons": "Bật nút điều khiển mở rộng",
+          "vehicle": "Xe",
+          "vin": "Số VIN"
+        },
+        "title": "Cấu hình VinFast",
+        "description": "Thay đổi cấu hình tích hợp, gồm cả máy chủ MQTT."
+      }
+    }
+  }
+}

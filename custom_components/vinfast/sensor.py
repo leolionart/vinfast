@@ -1,12 +1,13 @@
 import logging
 import json
+from datetime import datetime
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.util import slugify
 
 from .const import DOMAIN
-from .const_common import VIRTUAL_SENSORS
+from .const_common import SENSOR_SLUG_OVERRIDES, VIRTUAL_SENSORS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,7 +37,9 @@ class VinFastSensor(SensorEntity):
         vin_slug = api.vin.lower() if api.vin else "unknown"
         
         self._attr_unique_id = f"{model_slug}_{vin_slug}_{device_key}"
-        self.entity_id = f"sensor.{model_slug}_{vin_slug}_{slugify(name)}"
+        # Một số tên có "Đ/đ" bị slugify() của HA xoá hẳn -> dùng slug ghi đè.
+        entity_slug = SENSOR_SLUG_OVERRIDES.get(device_key) or slugify(name)
+        self.entity_id = f"sensor.{model_slug}_{vin_slug}_{entity_slug}"
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -50,24 +53,52 @@ class VinFastSensor(SensorEntity):
 
     async def async_added_to_hass(self):
         def handle_update(data):
-            try: self.hass.loop.call_soon_threadsafe(self._process_update, data)
-            except Exception: pass
-        self.api.add_callback(handle_update)
+            try:
+                self.hass.loop.call_soon_threadsafe(self._process_update, data)
+            except Exception:
+                _LOGGER.debug("VinFast: bỏ qua update sau khi entity unload", exc_info=True)
+
+        self._remove_callback = self.api.add_callback(handle_update)
         handle_update(self.api._last_data)
+
+    async def async_will_remove_from_hass(self):
+        remove_callback = getattr(self, "_remove_callback", None)
+        if remove_callback:
+            remove_callback()
+            self._remove_callback = None
+        await super().async_will_remove_from_hass()
 
     @callback
     def _process_update(self, data):
         if self._device_key in data:
             val = data[self._device_key]
-            val_clean = str(int(float(val))) if isinstance(val, (int, float)) else str(val).strip().upper()
+            # None/rỗng = endpoint không còn trả dữ liệu -> trả entity về "unknown"
+            # thay vì hiển thị chuỗi "NONE".
+            if val is None or (isinstance(val, str) and val.strip() == ""):
+                self._attr_native_value = None
+                self._attr_extra_state_attributes = {}
+                self.async_write_ha_state()
+                return
+            try:
+                val_clean = str(int(float(val))) if isinstance(val, (int, float)) else str(val).strip().upper()
+            except (TypeError, ValueError, OverflowError):
+                val_clean = str(val).strip().upper()
             vi = getattr(self.api, "lang", "vi") == "vi"
 
             if self._device_key in ["34183_00001_00001", "34187_00000_00000"]:
-                if val_clean == "1": self._attr_native_value = "P (Đỗ)" if vi else "P (Park)"
-                elif val_clean == "2": self._attr_native_value = "R (Lùi)" if vi else "R (Reverse)"
-                elif val_clean == "3": self._attr_native_value = "N (Mo)" if vi else "N (Neutral)"
-                elif val_clean == "4": self._attr_native_value = "D (Đi)" if vi else "D (Drive)"
+                # ponytail: support aliases and letter codes for PRND position
+                if val_clean in ["1", "P", "PARK"]: self._attr_native_value = "P (Đỗ)" if vi else "P (Park)"
+                elif val_clean in ["2", "R", "REVERSE"]: self._attr_native_value = "R (Lùi)" if vi else "R (Reverse)"
+                elif val_clean in ["3", "N", "NEUTRAL"]: self._attr_native_value = "N (Mo)" if vi else "N (Neutral)"
+                elif val_clean in ["4", "D", "DRIVE"]: self._attr_native_value = "D (Đi)" if vi else "D (Drive)"
                 else: self._attr_native_value = val
+
+            elif self._device_key == "api_vehicle_image":
+                val_str = str(val) if val else ""
+                if val_str and "connected-car.vinfast.vn" in val_str:
+                    self._attr_native_value = val_str.replace("https://", "http://")
+                else:
+                    self._attr_native_value = val_str
 
             elif self._device_key == "34183_00001_00029":
                 if val_clean == "0": self._attr_native_value = "Nhả phanh tay" if vi else "Released"
@@ -160,7 +191,8 @@ class VinFastSensor(SensorEntity):
 
             elif self._device_key in ["00006_00001_00000", "00006_00001_00001"]:
                 try:
-                    num_val = float(val)
+                    filtered_key = "api_last_lat" if self._device_key.endswith("00000") else "api_last_lon"
+                    num_val = float(self.api._last_data.get(filtered_key, val))
                     if num_val == 0.0: self._attr_native_value = "Đang tìm GPS..." if vi else "Searching GPS..."
                     else: self._attr_native_value = round(num_val, 6)
                 except (ValueError, TypeError):
@@ -170,10 +202,78 @@ class VinFastSensor(SensorEntity):
                 self._attr_native_value = "Dữ liệu Map" if vi else "Map Data"
                 self._attr_extra_state_attributes = {"route_json": val if isinstance(val, str) else json.dumps(val)}
                 
+            elif self._device_key == "api_driving_trend_json":
+                self._attr_native_value = "Dữ liệu Xu hướng" if vi else "Trend Data"
+                self._attr_extra_state_attributes = {"trend_json": val if isinstance(val, str) else json.dumps(val)}
+
+            elif self._device_key == "api_est_charge_completion_time":
+                if val:
+                    parsed = datetime.fromisoformat(str(val))
+                    self._attr_native_value = parsed if parsed.tzinfo else parsed.astimezone()
+                else:
+                    self._attr_native_value = None
+                
             elif self._device_key == "api_nearby_stations":
                 self._attr_native_value = "Danh sách Trạm" if vi else "Station List"
                 self._attr_extra_state_attributes = {"stations": val if isinstance(val, str) else json.dumps(val)}
-                
+
+            # --- API mở rộng: khoá chứa JSON dài -> state ngắn + attribute ---
+            elif self._device_key == "api_alert_json":
+                self._attr_native_value = "Chi tiết cảnh báo" if vi else "Alert Detail"
+                self._attr_extra_state_attributes = {"alerts_json": val if isinstance(val, str) else json.dumps(val)}
+
+            elif self._device_key == "api_driving_score_json":
+                self._attr_native_value = "Chi tiết điểm lái" if vi else "Score Detail"
+                self._attr_extra_state_attributes = {"indicators_json": val if isinstance(val, str) else json.dumps(val)}
+
+            elif self._device_key == "api_parked_images":
+                self._attr_native_value = "Ảnh vị trí đỗ" if vi else "Parked Images"
+                self._attr_extra_state_attributes = {"images_json": val if isinstance(val, str) else json.dumps(val)}
+
+            elif self._device_key == "api_current_charging_session":
+                self._attr_native_value = "Phiên sạc hiện tại" if vi else "Current Session"
+                self._attr_extra_state_attributes = {"session_json": val if isinstance(val, str) else json.dumps(val)}
+
+            elif self._device_key == "api_firmware_last_ok":
+                self._attr_native_value = "Đã cập nhật firmware" if vi else "Firmware Updated"
+                self._attr_extra_state_attributes = {"firmware_json": val if isinstance(val, str) else json.dumps(val)}
+
+            elif self._device_key == "api_firmware_in_progress":
+                self._attr_native_value = "Đang cập nhật firmware" if vi else "Firmware Updating"
+                self._attr_extra_state_attributes = {"firmware_json": val if isinstance(val, str) else json.dumps(val)}
+
+            elif self._device_key in ("api_last_charge_time", "api_thief_time",
+                                      "api_next_maintenance_date"):
+                # device_class "timestamp" yêu cầu datetime có tzinfo, không nhận epoch thô
+                # và CŨNG KHÔNG nhận chuỗi ISO (đã gây ValueError làm hỏng job cập nhật).
+                # `api_next_maintenance_date` do parser trả về chuỗi ISO; hai cái còn lại là epoch.
+                try:
+                    if isinstance(val, datetime):
+                        self._attr_native_value = val
+                    elif isinstance(val, str) and val.strip():
+                        self._attr_native_value = datetime.fromisoformat(
+                            val.strip().replace("Z", "+00:00")
+                        )
+                    else:
+                        ts = float(val)
+                        if ts <= 0:
+                            self._attr_native_value = None
+                        else:
+                            seconds = ts / 1000.0 if ts > 1e11 else ts
+                            self._attr_native_value = datetime.fromtimestamp(
+                                seconds, tz=datetime.now().astimezone().tzinfo
+                            )
+                except (TypeError, ValueError):
+                    self._attr_native_value = None
+
+            elif self._device_key in ("api_alert_summary", "api_thief_message",
+                                      "api_battery_charging_habits", "api_battery_driving_habits",
+                                      "api_battery_parking_habits"):
+                val_str = str(val) if val else ""
+                self._attr_native_value = val_str[:250] + "..." if len(val_str) > 250 else val_str
+                if len(val_str) > 250:
+                    self._attr_extra_state_attributes = {"full_text": val_str}
+
             elif self._device_key == "api_public_charge_sessions":
                 self._attr_native_value = val
                 history_str = self.api._last_data.get("api_charge_history_list", "[]")
@@ -192,15 +292,22 @@ class VinFastSensor(SensorEntity):
 
             elif self._device_key == "api_home_charge_sessions":
                 self._attr_native_value = val
-                home_kwh = self.api._last_data.get("api_home_charge_kwh", 0.0)
+                try:
+                    home_kwh = float(self.api._last_data.get("api_home_charge_kwh", 0.0))
+                except (TypeError, ValueError):
+                    home_kwh = 0.0
                 self._attr_extra_state_attributes = {("Tổng điện năng (kWh)" if vi else "Total Energy (kWh)"): round(home_kwh, 2)}
 
             elif self._device_key == "api_best_efficiency_band":
                 attrs = {}
                 stats = getattr(self.api, '_eff_stats', {})
                 for k, v in stats.items():
-                    if v["drops"] > 0:
-                        attrs[f"Dải {k} km/h" if vi else f"Band {k} km/h"] = f"{round(v['dist'] / v['drops'], 2)} km/1%"
+                    if not isinstance(v, dict):
+                        continue
+                    drops = float(v.get("drops", 0) or 0)
+                    distance = float(v.get("dist", 0) or 0)
+                    if drops > 0:
+                        attrs[f"Dải {k} km/h" if vi else f"Band {k} km/h"] = f"{round(distance / drops, 2)} km/1%"
                 self._attr_extra_state_attributes = attrs if attrs else {("Trạng thái" if vi else "Status"): ("Chưa đủ dữ liệu sụt pin" if vi else "Not enough data")}
                 self._attr_native_value = val
 
@@ -230,8 +337,25 @@ class VinFastSensor(SensorEntity):
                         self._attr_extra_state_attributes = {"Trạng thái": "Chờ bản tin MQTT..."}
                     val_str = str(val) if val else "Đang hoạt động"
                     self._attr_native_value = val_str[:250] + "..." if len(val_str) > 250 else val_str
-                except Exception: pass
+                except Exception:
+                    _LOGGER.debug("VinFast: không thể tạo debug attributes", exc_info=True)
                 
+            elif self._device_key in ["34183_00001_00003", "34199_00000_00000"]:
+                try: odo_val = float(val)
+                except: odo_val = 0.0
+                if odo_val <= 0.0:
+                    try:
+                        fb = float(self.api._last_data.get("api_odo_fallback_estimate", 0))
+                    except (TypeError, ValueError):
+                        fb = 0.0
+                    if fb > 0:
+                        self._attr_native_value = fb
+                        self._attr_extra_state_attributes = {"odo_source": self.api._last_data.get("api_odo_fallback_source", "Lịch sử lái xe"), "is_estimated": True}
+                    else: self._attr_native_value = "Đang ước lượng..." if vi else "Estimating..."
+                else:
+                    self._attr_native_value = round(odo_val, 2)
+                    self._attr_extra_state_attributes = {"odo_source": "AWS MQTT Thực tế", "is_estimated": False}
+                    
             else:
                 if isinstance(val, float):
                     self._attr_native_value = round(val, 2)

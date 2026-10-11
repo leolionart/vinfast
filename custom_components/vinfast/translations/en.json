@@ -2,18 +2,93 @@
   "config": {
     "step": {
       "user": {
-        "title": "Đăng nhập tài khoản VinFast",
-        "description": "Vui lòng nhập Email và Mật khẩu bạn dùng trên app VinFast.",
+        "title": "VinFast account login",
+        "description": "Enter the email and password you use in the VinFast app.",
         "data": {
-          "email": "Email",
-          "password": "Mật khẩu"
+          "email": "Email address",
+          "password": "Password",
+          "uaa_client_instance_id": "UAA clientInstanceId",
+          "uaa_signature": "UAA signature",
+          "uaa_timestamp": "UAA timestamp",
+          "vinfast_private_key": "VinFast private key (PEM)",
+          "gemini_api_key": "Gemini API key",
+          "gemini_model": "Gemini model",
+          "mapbox_token": "Mapbox token",
+          "stadia_token": "Stadia token",
+          "region": "Region",
+          "language": "Language",
+          "emqx_host": "MQTT server host (blank = use const.py)",
+          "emqx_port": "MQTT server port (blank = use const.py)",
+          "cost_per_kwh": "Electricity price per kWh (VND)",
+          "gas_price": "Petrol price (VND/litre)",
+          "control_private_key_pem": "Remote-control private key (PEM)",
+          "control_share_key": "Remote-control share key",
+          "control_session_id": "Remote-control session id",
+          "control_master_profile": "Use master profile",
+          "control_wakeup_timeout_ms": "Wake-up timeout (ms)",
+          "control_advanced_buttons": "Enable advanced control buttons",
+          "vehicle": "Vehicle",
+          "vin": "VIN"
         }
       },
       "select_vehicle": {
-        "title": "Chọn xe của bạn",
-        "description": "Chúng tôi đã tìm thấy xe trong tài khoản của bạn. Vui lòng chọn chiếc xe bạn muốn tích hợp.",
+        "title": "Select your vehicle",
+        "description": "Vehicles found in your account. Pick one to add.",
         "data": {
-          "vin": "Danh sách xe"
+          "vin": "VIN",
+          "email": "Email address",
+          "password": "Password",
+          "region": "Region",
+          "language": "Language",
+          "gemini_api_key": "Gemini API key",
+          "gemini_model": "Gemini model",
+          "mapbox_token": "Mapbox token",
+          "stadia_token": "Stadia token",
+          "emqx_host": "MQTT server host (blank = use const.py)",
+          "emqx_port": "MQTT server port (blank = use const.py)",
+          "cost_per_kwh": "Electricity price per kWh (VND)",
+          "gas_price": "Petrol price (VND/litre)",
+          "uaa_client_instance_id": "UAA clientInstanceId",
+          "uaa_signature": "UAA signature",
+          "uaa_timestamp": "UAA timestamp",
+          "vinfast_private_key": "VinFast private key (PEM)",
+          "control_private_key_pem": "Remote-control private key (PEM)",
+          "control_share_key": "Remote-control share key",
+          "control_session_id": "Remote-control session id",
+          "control_master_profile": "Use master profile",
+          "control_wakeup_timeout_ms": "Wake-up timeout (ms)",
+          "control_advanced_buttons": "Enable advanced control buttons",
+          "vehicle": "Vehicle"
+        }
+      },
+      "init": {
+        "title": "VinFast extended setup",
+        "data": {
+          "email": "Email address",
+          "password": "Password",
+          "uaa_client_instance_id": "UAA clientInstanceId",
+          "uaa_signature": "UAA signature",
+          "uaa_timestamp": "UAA timestamp",
+          "vinfast_private_key": "VinFast private key (PEM)",
+          "gemini_api_key": "Gemini API key",
+          "gemini_model": "Gemini model",
+          "mapbox_token": "Mapbox token",
+          "stadia_token": "Stadia token",
+          "region": "Region",
+          "language": "Language",
+          "cost_per_kwh": "Electricity price per kWh (VND)",
+          "gas_price": "Petrol price (VND/litre)",
+          "auto_smooth_trips": "Tự động làm mượt lộ trình (AI)",
+          "emqx_host": "MQTT server host (blank = use const.py)",
+          "emqx_port": "MQTT server port (blank = use const.py)",
+          "control_private_key_pem": "Remote-control private key (PEM)",
+          "control_share_key": "Remote-control share key",
+          "control_session_id": "Remote-control session id",
+          "control_master_profile": "Use master profile",
+          "control_wakeup_timeout_ms": "Wake-up timeout (ms)",
+          "control_advanced_buttons": "Enable advanced control buttons",
+          "vehicle": "Vehicle",
+          "vin": "VIN"
         }
       }
     },
@@ -23,6 +98,40 @@
     },
     "abort": {
       "already_configured": "Tài khoản này đã được cài đặt rồi."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "emqx_host": "MQTT server host (blank = use const.py)",
+          "emqx_port": "MQTT server port (blank = use const.py)",
+          "email": "Email address",
+          "password": "Password",
+          "region": "Region",
+          "language": "Language",
+          "gemini_api_key": "Gemini API key",
+          "gemini_model": "Gemini model",
+          "mapbox_token": "Mapbox token",
+          "stadia_token": "Stadia token",
+          "cost_per_kwh": "Electricity price per kWh (VND)",
+          "gas_price": "Petrol price (VND/litre)",
+          "uaa_client_instance_id": "UAA clientInstanceId",
+          "uaa_signature": "UAA signature",
+          "uaa_timestamp": "UAA timestamp",
+          "vinfast_private_key": "VinFast private key (PEM)",
+          "control_private_key_pem": "Remote-control private key (PEM)",
+          "control_share_key": "Remote-control share key",
+          "control_session_id": "Remote-control session id",
+          "control_master_profile": "Use master profile",
+          "control_wakeup_timeout_ms": "Wake-up timeout (ms)",
+          "control_advanced_buttons": "Enable advanced control buttons",
+          "vehicle": "Vehicle",
+          "vin": "VIN"
+        },
+        "title": "VinFast configuration",
+        "description": "Change the integration settings, including the MQTT server."
+      }
     }
   }
 }

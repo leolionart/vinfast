@@ -20,6 +20,18 @@ This custom component integrates **VinFast** vehicles into Home Assistant for mo
 - **VF 8**
 - **VF 9**
 
+## 📚 Advanced Technical Documentation & UAA Authentication (v2.9.56+)
+
+For modern vehicles and accounts requiring the new UAA/WAF authentication protocol:
+
+- 📖 [UAA Protocol, Play Integrity & Frida Bridge](docs/SESSION_2026-10-11_PLAY_INTEGRITY_UAA.md): Technical deep-dive on hardware attestation, APK v2.26.11 reverse-engineering, and token minting.
+- 🚀 [Home Assistant UAA Deployment Guide](docs/HA_DEPLOYMENT_GUIDE.md): Resolving `Failsafe` mode by injecting UAA quadruple credentials and private key directly into Home Assistant.
+- 🛠️ [Architecture & MQTT Protocols](docs/TECHNICAL.md): Detailed documentation on VinFast backend endpoints and EMQX/AWS MQTT brokers.
+- 💡 [Operational Lessons Learned](docs/LESSONS_LEARNED.md): Diagnosing `telemetry/app/ping` 403 status, TCU sleep states, and grant renewal.
+- 🧰 [Frida Harvest Tooling](tools/harvest_frida/): Automated tools for extracting Play Integrity tokens and generating UAA credentials.
+- ⚙️ [Operational & Renewal Tools](tools/upstream_tools/): Const synchronization and automated ADB grant renewal (`vf_grant_renew_app.py`).
+
+---
 ## 🏁 Beginner's Guide: Dashboard Setup
 
 If you are new to Home Assistant, follow these steps to get the integration and dashboard working quickly.

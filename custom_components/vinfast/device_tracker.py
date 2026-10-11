@@ -1,5 +1,5 @@
 import logging
-from homeassistant.components.device_tracker.config_entry import TrackerEntity
+from homeassistant.components.device_tracker import TrackerEntity
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.util import slugify
 
@@ -37,13 +37,23 @@ class VinFastDeviceTracker(TrackerEntity):
 
     @property
     def latitude(self):
-        lat = self.api._last_data.get("00006_00001_00000")
-        return float(lat) if lat else None
+        # [2.9.56] Bỏ fallback ``34185_00001_00001``: theo từ điển alias của server đó là
+        # VEHICLE_CRASH_STATUS_SIDE_LEFT_CRASH (0/1), không phải vĩ độ.
+        lat = self.api._last_data.get("api_last_lat", self.api._last_data.get("00006_00001_00000"))
+        return self._coordinate(lat, -90.0, 90.0)
 
     @property
     def longitude(self):
-        lon = self.api._last_data.get("00006_00001_00001")
-        return float(lon) if lon else None
+        lon = self.api._last_data.get("api_last_lon", self.api._last_data.get("00006_00001_00001"))
+        return self._coordinate(lon, -180.0, 180.0)
+
+    @staticmethod
+    def _coordinate(value, minimum, maximum):
+        try:
+            coordinate = float(value)
+        except (TypeError, ValueError):
+            return None
+        return coordinate if minimum <= coordinate <= maximum else None
 
     @property
     def source_type(self):
@@ -55,5 +65,15 @@ class VinFastDeviceTracker(TrackerEntity):
 
     async def async_added_to_hass(self):
         def handle_new_data(data):
-            self.hass.loop.call_soon_threadsafe(self.async_write_ha_state)
-        self.api.add_callback(handle_new_data)
+            try:
+                self.hass.loop.call_soon_threadsafe(self.async_write_ha_state)
+            except Exception:
+                _LOGGER.debug("VinFast: bỏ qua tracker update sau unload", exc_info=True)
+        self._remove_callback = self.api.add_callback(handle_new_data)
+
+    async def async_will_remove_from_hass(self):
+        remove_callback = getattr(self, "_remove_callback", None)
+        if remove_callback:
+            remove_callback()
+            self._remove_callback = None
+        await super().async_will_remove_from_hass()

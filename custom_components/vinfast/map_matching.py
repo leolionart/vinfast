@@ -91,6 +91,36 @@ def get_projected_pt(pt, pt_a, pt_b, allow_extend_start=False, allow_extend_end=
     d = haversine_distance(pt[0], pt[1], py, px)
     return [py, px], t, d
 
+def snap_raw_points_lossless(raw_coords, matched_route, max_snap_m=35.0):
+    if len(raw_coords) < 2 or len(matched_route) < 2:
+        return [list(point) for point in raw_coords]
+
+    snapped = []
+    segment_start = 0
+    for index, raw_point in enumerate(raw_coords):
+        if index in (0, len(raw_coords) - 1):
+            snapped.append(list(raw_point))
+            continue
+
+        best_point = None
+        best_distance = float("inf")
+        best_segment = segment_start
+        for segment in range(segment_start, len(matched_route) - 1):
+            projected, _, distance = get_projected_pt(raw_point, matched_route[segment], matched_route[segment + 1])
+            if distance < best_distance:
+                best_point = projected
+                best_distance = distance
+                best_segment = segment
+
+        if best_point is None or best_distance > max_snap_m:
+            snapped.append(list(raw_point))
+            continue
+
+        segment_start = best_segment
+        snapped.append([best_point[0], best_point[1], *list(raw_point[2:])])
+
+    return snapped
+
 # Hàm giữ nguyên nhưng không gọi tự động để tránh cắt sai
 def trim_route_to_projections(offset_route, coords):
     if len(offset_route) < 2 or len(coords) < 2: return offset_route
@@ -229,16 +259,18 @@ async def fetch_map_matching_api_async(session, chunk, chunk_bearings, chunk_tim
     timestamps_str = ";".join(map(str, chunk_timestamps))
     
     if mapbox_token and str(mapbox_token).strip() != "":
-        url = f"https://api.mapbox.com/matching/v5/mapbox/driving/{coord_str}?geometries=geojson&radiuses={radiuses}&bearings={bearings_str}&timestamps={timestamps_str}&tidy=true&overview=full&access_token={mapbox_token.strip()}"
+        url = f"https://api.mapbox.com/matching/v5/mapbox/driving/{coord_str}?geometries=geojson&radiuses={radiuses}&bearings={bearings_str}&timestamps={timestamps_str}&tidy=false&overview=full&access_token={mapbox_token.strip()}"
         try:
             async with session.get(url, timeout=5) as res:
                 if res.status == 200:
                     data = await res.json()
                     if data.get("code") == "Ok":
-                        if len(data["matchings"]) > 1: return None, "Mapbox Broken Route"
-                        matched = [[p[1], p[0]] for p in data["matchings"][0]["geometry"]["coordinates"]]
+                        matched = []
+                        for m in data["matchings"]:
+                            matched.extend([[p[1], p[0]] for p in m["geometry"]["coordinates"]])
                         return matched, "Mapbox"
-        except Exception: pass
+        except Exception:
+            _LOGGER.debug("VinFast: Mapbox trace_route failed", exc_info=True)
 
     if stadia_token and str(stadia_token).strip() != "":
         url = f"https://api.stadiamaps.com/valhalla/trace_route?api_key={stadia_token.strip()}"
@@ -258,21 +290,24 @@ async def fetch_map_matching_api_async(session, chunk, chunk_bearings, chunk_tim
                         coords = []
                         for leg in data["trip"]["legs"]: coords.extend(decode_polyline6(leg["shape"]))
                         return coords, "Stadia"
-        except Exception: pass
+        except Exception:
+            _LOGGER.debug("VinFast: Stadia trace_route failed", exc_info=True)
 
     headers = {"User-Agent": "HA-VinFast-Hybrid/21.0"}
     for server in OSRM_SERVERS:
-        url = f"{server}/match/v1/driving/{coord_str}?overview=full&geometries=geojson&radiuses={radiuses}&bearings={bearings_str}&timestamps={timestamps_str}&tidy=true"
+        url = f"{server}/match/v1/driving/{coord_str}?overview=full&geometries=geojson&radiuses={radiuses}&bearings={bearings_str}&timestamps={timestamps_str}&tidy=false"
         try:
             async with session.get(url, headers=headers, timeout=5) as res:
                 if res.status == 200:
                     data = await res.json()
                     if data.get("code") == "Ok":
-                        if len(data["matchings"]) > 1: return None, "OSRM Broken Route"
-                        matched = [[p[1], p[0]] for p in data["matchings"][0]["geometry"]["coordinates"]]
+                        matched = []
+                        for m in data["matchings"]:
+                            matched.extend([[p[1], p[0]] for p in m["geometry"]["coordinates"]])
                         return matched, f"OSRM"
                 elif res.status == 429: await asyncio.sleep(1.0) 
-        except Exception: pass
+        except Exception:
+            _LOGGER.debug("VinFast: chunk recursion failed", exc_info=True)
 
     return None, "Error"
 
@@ -287,14 +322,17 @@ async def recursive_hybrid_match_async(session, chunk, chunk_bearings, chunk_tim
         api_dist = calculate_route_length(matched_coords)
         
         # Ngăn chặn việc API tự ý kéo dài lộ trình vô lý (nhảy làn cao tốc, đi lòng vòng)
+        # [2.9.54] Toàn bộ trace thuật toán nắn đường hạ WARNING -> DEBUG.
+        # Đây là log chẩn đoán của thuật toán (chạy hàng chục dòng mỗi chuyến),
+        # không phải cảnh báo. Bật lại: logger -> custom_components.vinfast.map_matching: debug
         if raw_dist > 0 and api_dist > raw_dist * 1.50: 
-            _LOGGER.warning(f"      [-] {engine} đi vòng ({api_dist:.1f}m > {raw_dist:.1f}m). CẮT ĐÔI...")
+            _LOGGER.debug(f"      [-] {engine} đi vòng ({api_dist:.1f}m > {raw_dist:.1f}m). CẮT ĐÔI...")
             return await split_and_recurse_async(session, chunk, chunk_bearings, chunk_timestamps, mapbox_token, stadia_token, depth)
             
-        _LOGGER.warning(f"      [+] Khớp {engine} HOÀN HẢO! (Dài API: {api_dist:.1f}m)")
+        _LOGGER.debug(f"      [+] Khớp {engine} HOÀN HẢO! (Dài API: {api_dist:.1f}m)")
         return matched_coords
     else:
-        _LOGGER.warning(f"      [!] API ({engine}) từ chối đoạn nhiễu. CẮT ĐÔI...")
+        _LOGGER.debug(f"      [!] API ({engine}) từ chối đoạn nhiễu. CẮT ĐÔI...")
         return await split_and_recurse_async(session, chunk, chunk_bearings, chunk_timestamps, mapbox_token, stadia_token, depth)
 
 async def split_and_recurse_async(session, chunk, chunk_bearings, chunk_timestamps, mapbox_token, stadia_token, depth):
@@ -307,7 +345,8 @@ async def split_and_recurse_async(session, chunk, chunk_bearings, chunk_timestam
 async def async_process_route(hass, raw_coords, mapbox_token, stadia_token):
     if not raw_coords or len(raw_coords) < 5: return raw_coords
     
-    _LOGGER.warning(f"[1] TỌA ĐỘ GỐC: {len(raw_coords)} điểm. Chiều dài: {calculate_route_length(raw_coords):.1f}m")
+    # [2.9.54] WARNING -> DEBUG: trace thuật toán.
+    _LOGGER.debug(f"[1] TỌA ĐỘ GỐC: {len(raw_coords)} điểm. Chiều dài: {calculate_route_length(raw_coords):.1f}m")
     session = async_get_clientsession(hass)
 
     # BƯỚC 1: LÀM SẠCH LỖI VÀ NHIỄU (Bảo toàn 100% chuyến đi kể cả tắc đường)
@@ -345,7 +384,8 @@ async def async_process_route(hass, raw_coords, mapbox_token, stadia_token):
         chunk_t = global_timestamps[i:i+CHUNK_SIZE]
         if len(chunk) < 2: continue
         
-        _LOGGER.warning(f"--- Đang xử lý Chặng: {i} đến {i+len(chunk)} ---")
+        # [2.9.54] WARNING -> DEBUG: trace thuật toán.
+        _LOGGER.debug(f"--- Đang xử lý Chặng: {i} đến {i+len(chunk)} ---")
         matched_chunk = await recursive_hybrid_match_async(session, chunk, chunk_b, chunk_t, mapbox_token, stadia_token)
 
         if i > 0 and len(final_matched_route) > 0 and len(matched_chunk) > 0:
@@ -355,27 +395,17 @@ async def async_process_route(hass, raw_coords, mapbox_token, stadia_token):
             
         await asyncio.sleep(0.1 if is_mapbox else 0.5) 
         
-    _LOGGER.warning(f"[3] BẢN ĐỒ TRẢ VỀ: {len(final_matched_route)} điểm.")
+    # [2.9.54] WARNING -> DEBUG: trace thuật toán.
+    _LOGGER.debug(f"[3] BẢN ĐỒ TRẢ VỀ: {len(final_matched_route)} điểm.")
 
-    # BƯỚC 4: GÁN TỐC ĐỘ VÀ TỊNH TIẾN LUÔN SÁT LỀ PHẢI
-    route_with_speed = assign_speeds(final_matched_route, cleaned_raw)
-    offset_route = offset_route_right(route_with_speed, offset_meters=1.5)
+    # ponytail: projection 1:1 giữ toàn bộ mẫu GPS; nâng cấp sang HMM khi cần xử lý đường song song/phức tạp.
+    return snap_raw_points_lossless(raw_coords, final_matched_route)
 
-    # BƯỚC 5: KHÓA CHẶT ĐIỂM ĐẦU VÀ CUỐI VỚI RAW GPS (Bắt buộc điểm nối trip phải chuẩn xác)
-    if len(offset_route) >= 2 and len(raw_coords) >= 2:
-        offset_route[0][0] = raw_coords[0][0]
-        offset_route[0][1] = raw_coords[0][1]
-        
-        offset_route[-1][0] = raw_coords[-1][0]
-        offset_route[-1][1] = raw_coords[-1][1]
-
-    # TRẢ VỀ TOÀN BỘ LỘ TRÌNH, KHÔNG DÙNG TRIM NỮA THEO YÊU CẦU
-    return offset_route
 
 # ================= QUẢN LÝ LƯU TRỮ CHUYẾN ĐI (JSON CACHE) =================
 
 def load_cache(hass):
-    path = hass.config.path("www", CACHE_FILE)
+    path = hass.config.path(".storage", "vinfast_trips_cache.json")
     if os.path.exists(path):
         try:
             with open(path, 'r', encoding='utf-8') as f: return json.load(f)
@@ -383,10 +413,12 @@ def load_cache(hass):
     return {}
 
 def save_cache(hass, cache_data):
-    path = hass.config.path("www", CACHE_FILE)
+    path = hass.config.path(".storage", "vinfast_trips_cache.json")
     try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'w', encoding='utf-8') as f: json.dump(cache_data, f, ensure_ascii=False)
-    except Exception: pass
+    except Exception:
+        _LOGGER.debug("VinFast: cache save failed", exc_info=True)
 
 async def async_get_or_process_trip(hass, trip_id, raw_coords, config_entry):
     if not raw_coords or len(raw_coords) < 5:
@@ -408,3 +440,55 @@ async def async_get_or_process_trip(hass, trip_id, raw_coords, config_entry):
     await hass.async_add_executor_job(save_cache, hass, cache_data)
     
     return processed_route
+
+# ================= THUẬT TOÁN NÉN RDP (RAMER-DOUGLAS-PEUCKER) =================
+
+def perpendicular_distance(point, start, end):
+    lat_p, lon_p = point[0], point[1]
+    lat_a, lon_a = start[0], start[1]
+    lat_b, lon_b = end[0], end[1]
+    
+    if lat_a == lat_b and lon_a == lon_b:
+        return haversine_distance(lat_p, lon_p, lat_a, lon_a)
+        
+    cos_lat = math.cos(math.radians((lat_a + lat_b) / 2.0))
+    
+    y_p, x_p = lat_p * 111132.0, lon_p * 111132.0 * cos_lat
+    y_a, x_a = lat_a * 111132.0, lon_a * 111132.0 * cos_lat
+    y_b, x_b = lat_b * 111132.0, lon_b * 111132.0 * cos_lat
+    
+    dx = x_b - x_a
+    dy = y_b - y_a
+    
+    ab_len_sq = dx*dx + dy*dy
+    if ab_len_sq == 0:
+        return math.sqrt((x_p - x_a)**2 + (y_p - y_a)**2)
+        
+    t = ((x_p - x_a) * dx + (y_p - y_a) * dy) / ab_len_sq
+    t = max(0.0, min(1.0, t))
+    
+    proj_x = x_a + t * dx
+    proj_y = y_a + t * dy
+    
+    return math.sqrt((x_p - proj_x)**2 + (y_p - proj_y)**2)
+
+def ramer_douglas_peucker(coords, epsilon=1.5):
+    if len(coords) < 3:
+        return coords
+        
+    dmax = 0.0
+    index = 0
+    end = len(coords) - 1
+    
+    for i in range(1, end):
+        d = perpendicular_distance(coords[i], coords[0], coords[end])
+        if d > dmax:
+            index = i
+            dmax = d
+            
+    if dmax > epsilon:
+        results1 = ramer_douglas_peucker(coords[:index+1], epsilon)
+        results2 = ramer_douglas_peucker(coords[index:], epsilon)
+        return results1[:-1] + results2
+    else:
+        return [coords[0], coords[end]]

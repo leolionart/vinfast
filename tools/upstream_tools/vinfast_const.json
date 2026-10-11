@@ -1,0 +1,34 @@
+{
+  "_doc": "Const vận hành cho luồng gia hạn grant VinFast. CHỈ chứa dữ liệu KHÔNG bí mật. Mật khẩu nằm trong config entry của Home Assistant. File này là chỉ-đọc với luồng gia hạn: KHÔNG bao giờ bị ghi đè.",
+  "version": 1,
+  "renewal": {
+    "enabled": true,
+    "adb_target": "192.168.100.35:5555",
+    "interval_minutes": 30,
+    "device_id_default": "8feb7998824e390b",
+    "device_id_by_email": {
+      "thaitvad@gmail.com": "8feb7998824e390b"
+    },
+    "app_version": "2.22.18",
+    "device_family": "ONEPLUS A6013",
+    "api_base": "https://mobile.connected-car.vinfast.vn",
+    "auth0_domain": "https://vin3s.au.auth0.com",
+    "auth0_client_id": "jE5xt50qC7oIh1f32qMzA6hGznIU5mgH",
+    "timeout_seconds": 240
+  },
+  "accounts": {
+    "thaitvad@gmail.com": {
+      "vin": "RLLVAG8C9RH709847",
+      "model": "VF6",
+      "iot_provider": "EMQX",
+      "renewal_expected": true
+    },
+    "gambt90@gmail.com": {
+      "vin": "RLNVBL9K1RH742246",
+      "model": "VF3",
+      "iot_provider": "AWS",
+      "renewal_expected": false,
+      "_note": "Cần device id riêng của tài khoản này; hiện ping trả 403."
+    }
+  }
+}

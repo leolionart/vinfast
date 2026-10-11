@@ -18,6 +18,18 @@ Component tùy chỉnh này tích hợp xe **VinFast** vào Home Assistant để
 - **VF 8**
 - **VF 9**
 
+## 📚 Tài Liệu Kỹ Thuật Nâng Cao & Xác Thực UAA (v2.9.56+)
+
+Đối với các xe đời mới hoặc tài khoản yêu cầu giao thức xác thực nâng cao UAA/WAF:
+
+- 📖 [Cơ chế UAA, Play Integrity & Frida Bridge](docs/SESSION_2026-10-11_PLAY_INTEGRITY_UAA.md): Báo cáo kỹ thuật phân tích phần cứng, giải mã APK v2.26.11, và cơ chế sinh token.
+- 🚀 [Hướng dẫn nạp cấu hình UAA vào Home Assistant](docs/HA_DEPLOYMENT_GUIDE.md): Khắc phục lỗi `Failsafe`, nạp trực tiếp bộ tứ thông số UAA và Private Key.
+- 🛠️ [Tài liệu kỹ thuật tổng thể (Architecture & MQTT)](docs/TECHNICAL.md): Kiến trúc server VinFast và các giao thức MQTT EMQX/AWS.
+- 💡 [Bài học kinh nghiệm vận hành](docs/LESSONS_LEARNED.md): Các lưu ý về quyền `telemetry/app/ping`, đánh thức TCU và quản lý phiên.
+- 🧰 [Bộ công cụ Frida Harvest](tools/harvest_frida/): Scripts tự động hoá thu thập Play Integrity và UAA credentials độc lập.
+- ⚙️ [Bộ công cụ vận hành & Gia hạn](tools/upstream_tools/): Các công cụ đồng bộ const và gia hạn phiên tự động qua ADB (`vf_grant_renew_app.py`).
+
+---
 ## 🏁 Hướng Dẫn Nhanh Cho Người Mới
 
 ### Bước 1: Cài các yêu cầu cần thiết
