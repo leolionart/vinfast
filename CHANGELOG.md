@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased - 2026-10-11 08:50 +07
+
+Generated before push from commits:
+
+- `a7a4bd0` feat(integration): upgrade to v2.9.56 with UAA/WAF support, Frida harvest tools, and deep architecture docs
+
 All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog.
