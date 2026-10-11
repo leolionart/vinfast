@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased - 2026-10-11 09:37 +07
+
+Generated before push from commits:
+
+- `833c38e` docs: update preview image in README
+
 ## Unreleased - 2026-10-11 08:52 +07
 
 Generated before push from commits:
