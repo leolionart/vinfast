@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.9.57] - 2026-10-11
+
+### Added
+- Standardized brand images (`icon.png`, `icon@2x.png`, `logo.png`, `logo@2x.png`) in `brand/` folder following Home Assistant 2026.3+ Brands specification.
+
 ## Unreleased - 2026-10-11 09:37 +07
 
 Generated before push from commits:
