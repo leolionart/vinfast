@@ -9,6 +9,7 @@ This custom component integrates **VinFast** vehicles into Home Assistant for mo
 > **Note**: This build now uses the MQTT/WebSocket implementation and bundled custom-card assets. The old YAML dashboard templates are no longer used.
 >
 > Install from this repository only. Users do not need to add the original upstream repository to HACS.
+<img width="510" height="823" alt="image" src="https://github.com/user-attachments/assets/b0da5677-bc66-41ee-bab2-fe16d4928d8d" />
 
 ## Supported Models
 
