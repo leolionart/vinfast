@@ -7,6 +7,8 @@ Component tùy chỉnh này tích hợp xe **VinFast** vào Home Assistant để
 > **Lưu ý**: Bản hiện tại đã chuyển sang implementation MQTT/WebSocket và custom card đi kèm trong repo. Bộ YAML dashboard cũ không còn được dùng nữa.
 >
 > Chỉ cần cài từ repo này. Người dùng không cần add thêm repo upstream gốc vào HACS.
+<img width="510" alt="VinFast Digital Twin Preview" src="https://screenshot.naai.studio/snapzy/1791686163-ec05ce51-snapzy_2026-10-11_09-35-58_570.png" />
+
 
 ## Các Dòng Xe Được Hỗ Trợ
 
