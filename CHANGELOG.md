@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased - 2026-10-11 08:52 +07
+
+Generated before push from commits:
+
+- `7b82d73` docs: add comprehensive session report and HA deployment guide
+
 ## Unreleased - 2026-10-11 08:50 +07
 
 Generated before push from commits:
